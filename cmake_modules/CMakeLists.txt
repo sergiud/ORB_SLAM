@@ -68,8 +68,8 @@ target_link_libraries (ORB_SLAM PUBLIC ${Boost_LIBRARIES} ${G2O_SOLVER_CHOLMOD}
 set_target_properties (ORB_SLAM PROPERTIES CXX_STANDARD 11
   CXX_STANDARD_REQUIRED ON)
 
-add_executable (ORB_SLAM_live
+add_executable (run_ORB_SLAM
   ../src/main_no_ros.cc
 )
 
-target_link_libraries (ORB_SLAM_live PRIVATE ORB_SLAM)
+target_link_libraries (run_ORB_SLAM PRIVATE ORB_SLAM)
