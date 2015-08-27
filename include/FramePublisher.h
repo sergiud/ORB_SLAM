@@ -25,7 +25,9 @@
 #include "MapPoint.h"
 #include "Map.h"
 
+#ifdef HAVE_ROS
 #include "ros/ros.h"
+#endif // HAVE_ROS
 
 #include<opencv2/core/core.hpp>
 #include<opencv2/features2d/features2d.hpp>
@@ -41,17 +43,17 @@ class Tracking;
 class FramePublisher
 {
 public:
-    FramePublisher();    
+    FramePublisher();
 
     void Update(Tracking *pTracker);
 
     void Refresh();
 
     void SetMap(Map* pMap);
+    cv::Mat DrawFrame();
 
 protected:
 
-    cv::Mat DrawFrame();
 
     void PublishFrame();
 
@@ -67,8 +69,10 @@ protected:
     vector<cv::KeyPoint> mvIniKeys;
     vector<int> mvIniMatches;
 
+#ifdef HAVE_ROS
     ros::NodeHandle mNH;
     ros::Publisher mImagePub;
+#endif // HAVE_ROS
 
     int mState;
 

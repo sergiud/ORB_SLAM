@@ -28,6 +28,7 @@ namespace ORB_SLAM
 
 MapPublisher::MapPublisher(Map* pMap):mpMap(pMap), mbCameraUpdated(false)
 {
+#ifdef HAVE_ROS
     const char* MAP_FRAME_ID = "/ORB_SLAM/World";
     const char* POINTS_NAMESPACE = "MapPoints";
     const char* KEYFRAMES_NAMESPACE = "KeyFrames";
@@ -114,6 +115,7 @@ MapPublisher::MapPublisher(Map* pMap):mpMap(pMap), mbCameraUpdated(false)
     publisher.publish(mCovisibilityGraph);
     publisher.publish(mKeyFrames);
     publisher.publish(mCurrentCamera);
+#endif // HAVE_ROS
 }
 
 void MapPublisher::Refresh()
@@ -130,15 +132,16 @@ void MapPublisher::Refresh()
         vector<MapPoint*> vMapPoints = mpMap->GetAllMapPoints();
         vector<MapPoint*> vRefMapPoints = mpMap->GetReferenceMapPoints();
 
-        PublishMapPoints(vMapPoints, vRefMapPoints);   
+        PublishMapPoints(vMapPoints, vRefMapPoints);
         PublishKeyFrames(vKeyFrames);
 
         mpMap->ResetUpdated();
-    }    
+    }
 }
 
 void MapPublisher::PublishMapPoints(const vector<MapPoint*> &vpMPs, const vector<MapPoint*> &vpRefMPs)
 {
+#ifdef HAVE_ROS
     mPoints.points.clear();
     mReferencePoints.points.clear();
 
@@ -174,10 +177,12 @@ void MapPublisher::PublishMapPoints(const vector<MapPoint*> &vpMPs, const vector
     mReferencePoints.header.stamp = ros::Time::now();
     publisher.publish(mPoints);
     publisher.publish(mReferencePoints);
+#endif // HAVE_ROS
 }
 
 void MapPublisher::PublishKeyFrames(const vector<KeyFrame*> &vpKFs)
 {
+#ifdef HAVE_ROS
     mKeyFrames.points.clear();
     mCovisibilityGraph.points.clear();
     mMST.points.clear();
@@ -244,6 +249,7 @@ void MapPublisher::PublishKeyFrames(const vector<KeyFrame*> &vpKFs)
                 if((*vit)->mnId<vpKFs[i]->mnId)
                     continue;
                 cv::Mat Ow2 = (*vit)->GetCameraCenter();
+
                 geometry_msgs::Point msgs_o2;
                 msgs_o2.x=Ow2.at<float>(0);
                 msgs_o2.y=Ow2.at<float>(1);
@@ -287,10 +293,12 @@ void MapPublisher::PublishKeyFrames(const vector<KeyFrame*> &vpKFs)
     publisher.publish(mKeyFrames);
     publisher.publish(mCovisibilityGraph);
     publisher.publish(mMST);
+#endif // HAVE_ROS
 }
 
 void MapPublisher::PublishCurrentCamera(const cv::Mat &Tcw)
 {
+#ifdef HAVE_ROS
     mCurrentCamera.points.clear();
 
     float d = fCameraSize;
@@ -346,6 +354,7 @@ void MapPublisher::PublishCurrentCamera(const cv::Mat &Tcw)
     mCurrentCamera.header.stamp = ros::Time::now();
 
     publisher.publish(mCurrentCamera);
+#endif // HAVE_ROS
 }
 
 void MapPublisher::SetCurrentCameraPose(const cv::Mat &Tcw)

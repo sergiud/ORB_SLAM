@@ -19,8 +19,10 @@
 */
 
 #include "Tracking.h"
+#ifdef HAVE_ROS
 #include<ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
+#endif // HAVE_ROS
 
 #include<opencv2/opencv.hpp>
 
@@ -35,6 +37,10 @@
 
 #include<iostream>
 #include<fstream>
+#include <stdexcept>
+
+#include <boost/format.hpp>
+#include <boost/throw_exception.hpp>
 
 
 using namespace std;
@@ -42,6 +48,51 @@ using namespace std;
 namespace ORB_SLAM
 {
 
+Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap,
+        const cv::Mat& K, const cv::Mat& distCoeffs, double fps,
+        int nFeatures,
+        float fScaleFactor,
+        int nLevels,
+        int fastTh,
+        int Score,
+        bool UseMotionModel
+        ):
+    mState(NO_IMAGES_YET), mpORBVocabulary(pVoc), mpFramePublisher(pFramePublisher), mpMapPublisher(pMapPublisher), mpMap(pMap),
+    mnLastRelocFrameId(0), mbPublisherStopped(false), mbReseting(false), mbForceRelocalisation(false), mbMotionModel(UseMotionModel),
+    mpInitializer(NULL)
+{
+    if (K.empty() || K.cols != 3 || K.rows != 3)
+        BOOST_THROW_EXCEPTION(std::invalid_argument("camera intrinsic matrix must 3x3"));
+
+    mK = K;
+    mDistCoef = distCoeffs;
+
+    if(fps==0)
+        fps=30;
+
+    // Max/Min Frames to insert keyframes and to check relocalisation
+    mMinFrames = 0;
+    mMaxFrames = 18*fps/30;
+
+    mbRGB = 0;
+
+    assert(Score==1 || Score==0);
+
+    mpORBextractor = new ORBextractor(nFeatures,fScaleFactor,nLevels,Score,fastTh);
+
+
+    // ORB extractor for initialization
+    // Initialization uses only points from the finest scale level
+    mpIniORBextractor = new ORBextractor(nFeatures*2,1.2,8,Score,fastTh);
+
+    if(mbMotionModel)
+    {
+        mVelocity = cv::Mat::eye(4,4,CV_32F);
+        cout << endl << "Motion Model: Enabled" << endl << endl;
+    }
+    else
+        cout << endl << "Motion Model: Disabled (not recommended, change settings UseMotionModel: 1)" << endl << endl;
+}
 
 Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap, string strSettingPath):
     mState(NO_IMAGES_YET), mpORBVocabulary(pVoc), mpFramePublisher(pFramePublisher), mpMapPublisher(pMapPublisher), mpMap(pMap),
@@ -103,7 +154,7 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     int nFeatures = fSettings["ORBextractor.nFeatures"];
     float fScaleFactor = fSettings["ORBextractor.scaleFactor"];
     int nLevels = fSettings["ORBextractor.nLevels"];
-    int fastTh = fSettings["ORBextractor.fastTh"];    
+    int fastTh = fSettings["ORBextractor.fastTh"];
     int Score = fSettings["ORBextractor.nScoreType"];
 
     assert(Score==1 || Score==0);
@@ -123,7 +174,7 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
 
     // ORB extractor for initialization
     // Initialization uses only points from the finest scale level
-    mpIniORBextractor = new ORBextractor(nFeatures*2,1.2,8,Score,fastTh);  
+    mpIniORBextractor = new ORBextractor(nFeatures*2,1.2,8,Score,fastTh);
 
     int nMotion = fSettings["UseMotionModel"];
     mbMotionModel = nMotion;
@@ -137,9 +188,11 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
         cout << endl << "Motion Model: Disabled (not recommended, change settings UseMotionModel: 1)" << endl << endl;
 
 
+#ifdef HAVE_ROS
     tf::Transform tfT;
     tfT.setIdentity();
     mTfBr.sendTransform(tf::StampedTransform(tfT,ros::Time::now(), "/ORB_SLAM/World", "/ORB_SLAM/Camera"));
+#endif // HAVE_ROS
 }
 
 void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
@@ -157,14 +210,142 @@ void Tracking::SetKeyFrameDatabase(KeyFrameDatabase *pKFDB)
     mpKeyFrameDB = pKFDB;
 }
 
+
 void Tracking::Run()
 {
+#ifdef HAVE_ROS
     ros::NodeHandle nodeHandler;
     ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &Tracking::GrabImage, this);
 
     ros::spin();
+#endif // HAVE_ROS
 }
 
+void Tracking::Track(const cv::Mat& im)
+{
+    if(mState==WORKING || mState==LOST)
+        mCurrentFrame = Frame(im, std::time(0), mpORBextractor,mpORBVocabulary,mK,mDistCoef);
+    else
+        mCurrentFrame = Frame(im, std::time(0), mpIniORBextractor,mpORBVocabulary,mK,mDistCoef);
+
+    // Depending on the state of the Tracker we perform different tasks
+
+    if(mState==NO_IMAGES_YET)
+    {
+        mState = NOT_INITIALIZED;
+    }
+
+    mLastProcessedState=mState;
+
+    if(mState==NOT_INITIALIZED)
+    {
+        FirstInitialization();
+    }
+    else if(mState==INITIALIZING)
+    {
+        Initialize();
+    }
+    else
+    {
+        // System is initialized. Track Frame.
+        bool bOK;
+
+        // Initial Camera Pose Estimation from Previous Frame (Motion Model or Coarse) or Relocalisation
+        if(mState==WORKING && !RelocalisationRequested())
+        {
+            if(!mbMotionModel || mpMap->KeyFramesInMap()<4 || mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2)
+                bOK = TrackPreviousFrame();
+            else
+            {
+                bOK = TrackWithMotionModel();
+                if(!bOK)
+                    bOK = TrackPreviousFrame();
+            }
+        }
+        else
+        {
+            bOK = Relocalisation();
+        }
+
+        // If we have an initial estimation of the camera pose and matching. Track the local map.
+        if(bOK)
+            bOK = TrackLocalMap();
+
+        // If tracking were good, check if we insert a keyframe
+        if(bOK)
+        {
+            mpMapPublisher->SetCurrentCameraPose(mCurrentFrame.mTcw);
+
+            if(NeedNewKeyFrame())
+                CreateNewKeyFrame();
+
+            // We allow points with high innovation (considererd outliers by the Huber Function)
+            // pass to the new keyframe, so that bundle adjustment will finally decide
+            // if they are outliers or not. We don't want next frame to estimate its position
+            // with those points so we discard them in the frame.
+            for(size_t i=0; i<mCurrentFrame.mvbOutlier.size();i++)
+            {
+                if(mCurrentFrame.mvpMapPoints[i] && mCurrentFrame.mvbOutlier[i])
+                    mCurrentFrame.mvpMapPoints[i]=NULL;
+            }
+        }
+
+        if(bOK)
+            mState = WORKING;
+        else
+            mState=LOST;
+
+        // Reset if the camera get lost soon after initialization
+        if(mState==LOST)
+        {
+            if(mpMap->KeyFramesInMap()<=5)
+            {
+                std::cerr << "error: camera lost; resetting..." << std::endl;
+                Reset();
+                return;
+            }
+        }
+
+        // Update motion model
+        if(mbMotionModel)
+        {
+            if(bOK && !mLastFrame.mTcw.empty())
+            {
+                cv::Mat LastRwc = mLastFrame.mTcw.rowRange(0,3).colRange(0,3).t();
+                cv::Mat Lasttwc = -LastRwc*mLastFrame.mTcw.rowRange(0,3).col(3);
+                cv::Mat LastTwc = cv::Mat::eye(4,4,CV_32F);
+                LastRwc.copyTo(LastTwc.rowRange(0,3).colRange(0,3));
+                Lasttwc.copyTo(LastTwc.rowRange(0,3).col(3));
+                mVelocity = mCurrentFrame.mTcw*LastTwc;
+            }
+            else
+                mVelocity = cv::Mat();
+        }
+
+        mLastFrame = Frame(mCurrentFrame);
+     }
+
+    // Update drawer
+    mpFramePublisher->Update(this);
+
+    if(!mCurrentFrame.mTcw.empty())
+    {
+        cv::Mat Rwc = mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3).t();
+        cv::Mat twc = -Rwc*mCurrentFrame.mTcw.rowRange(0,3).col(3);
+#ifdef HAVE_ROS
+        tf::Matrix3x3 M(Rwc.at<float>(0,0),Rwc.at<float>(0,1),Rwc.at<float>(0,2),
+                        Rwc.at<float>(1,0),Rwc.at<float>(1,1),Rwc.at<float>(1,2),
+                        Rwc.at<float>(2,0),Rwc.at<float>(2,1),Rwc.at<float>(2,2));
+        tf::Vector3 V(twc.at<float>(0), twc.at<float>(1), twc.at<float>(2));
+
+        tf::Transform tfTcw(M,V);
+
+        mTfBr.sendTransform(tf::StampedTransform(tfTcw,ros::Time::now(), "ORB_SLAM/World", "ORB_SLAM/Camera"));
+#endif // HAVE_ROS
+    }
+}
+
+#ifdef HAVE_ROS
 void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 {
 
@@ -273,6 +454,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         {
             if(mpMap->KeyFramesInMap()<=5)
             {
+                std::cerr << "error: camera lost. resetting..." << std::endl;
                 Reset();
                 return;
             }
@@ -295,7 +477,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         }
 
         mLastFrame = Frame(mCurrentFrame);
-     }       
+     }
 
     // Update drawer
     mpFramePublisher->Update(this);
@@ -316,6 +498,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 
 }
 
+#endif // HAVE_ROS
 
 void Tracking::FirstInitialization()
 {
@@ -346,7 +529,7 @@ void Tracking::Initialize()
         fill(mvIniMatches.begin(),mvIniMatches.end(),-1);
         mState = NOT_INITIALIZED;
         return;
-    }    
+    }
 
     // Find correspondences
     ORBmatcher matcher(0.9,true);
@@ -357,7 +540,7 @@ void Tracking::Initialize()
     {
         mState = NOT_INITIALIZED;
         return;
-    }  
+    }
 
     cv::Mat Rcw; // Current Camera Rotation
     cv::Mat tcw; // Current Camera Translation
@@ -371,7 +554,7 @@ void Tracking::Initialize()
             {
                 mvIniMatches[i]=-1;
                 nmatches--;
-            }           
+            }
         }
 
         CreateInitialMap(Rcw,tcw);
@@ -431,7 +614,7 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     pKFcur->UpdateConnections();
 
     // Bundle Adjustment
-    ROS_INFO("New Map created with %d points",mpMap->MapPointsInMap());
+    std::cout << boost::format("New Map created with %d points") % mpMap->MapPointsInMap() << std::endl;
 
     Optimizer::GlobalBundleAdjustemnt(mpMap,20);
 
@@ -441,7 +624,7 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
 
     if(medianDepth<0 || pKFcur->TrackedMapPoints()<100)
     {
-        ROS_INFO("Wrong initialization, reseting...");
+        std::cerr << "Wrong initialization, reseting..." << std::endl;
         Reset();
         return;
     }
@@ -533,8 +716,10 @@ bool Tracking::TrackPreviousFrame()
 
     mCurrentFrame.mvpMapPoints=vpMapPointMatches;
 
-    if(nmatches<10)
+    if(nmatches<10) {
+        std::clog << "warning: not enough matches" << std::endl;
         return false;
+    }
 
     // Optimize pose again with all correspondences
     Optimizer::PoseOptimization(&mCurrentFrame);
@@ -704,14 +889,14 @@ void Tracking::SearchReferencePointsInFrustum()
         if(pMP->mnLastFrameSeen == mCurrentFrame.mnId)
             continue;
         if(pMP->isBad())
-            continue;        
+            continue;
         // Project (this fills MapPoint variables for matching)
         if(mCurrentFrame.isInFrustum(pMP,0.5))
         {
             pMP->IncreaseVisible();
             nToMatch++;
         }
-    }    
+    }
 
 
     if(nToMatch>0)
@@ -726,7 +911,7 @@ void Tracking::SearchReferencePointsInFrustum()
 }
 
 void Tracking::UpdateReference()
-{    
+{
     // This is for visualization
     mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
 
@@ -897,7 +1082,7 @@ bool Tracking::Relocalisation()
                 vpPnPsolvers[i] = pSolver;
                 nCandidates++;
             }
-        }        
+        }
     }
 
     // Alternatively perform some iterations of P4P RANSAC
@@ -989,7 +1174,7 @@ bool Tracking::Relocalisation()
 
                 // If the pose is supported by enough inliers stop ransacs and continue
                 if(nGood>=50)
-                {                    
+                {
                     bMatch = true;
                     break;
                 }
@@ -1031,6 +1216,7 @@ void Tracking::Reset()
         mbReseting = true;
     }
 
+#ifdef HAVE_ROS
     // Wait until publishers are stopped
     ros::Rate r(500);
     while(1)
@@ -1042,6 +1228,12 @@ void Tracking::Reset()
         }
         r.sleep();
     }
+#else
+#if 0
+    while (!mbPublisherStopped)
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
+#endif
+#endif // HAVE_ROS
 
     // Reset Local Mapping
     mpLocalMapper->RequestReset();
@@ -1077,6 +1269,7 @@ void Tracking::CheckResetByPublishers()
         mbPublisherStopped = true;
     }
 
+#ifdef HAVE_ROS
     // Hold until reset is finished
     ros::Rate r(500);
     while(1)
@@ -1091,6 +1284,23 @@ void Tracking::CheckResetByPublishers()
         }
         r.sleep();
     }
+#else
+    while (1) {
+        {
+            boost::mutex::scoped_lock lock(mMutexReset);
+            if(!mbReseting)
+            {
+                mbPublisherStopped=false;
+                break;
+            }
+        }
+
+        {
+            boost::unique_lock<boost::mutex> lock(processMutex);
+            processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 500));
+        }
+    }
+#endif // HAVE_ROS
 }
 
 } //namespace ORB_SLAM

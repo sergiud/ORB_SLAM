@@ -23,7 +23,11 @@
 #include "ORBmatcher.h"
 #include "Optimizer.h"
 
+#ifdef HAVE_ROS
 #include <ros/ros.h>
+#else
+#include <boost/thread/thread.hpp>
+#endif // HAVE_ROS
 
 namespace ORB_SLAM
 {
@@ -45,13 +49,13 @@ void LocalMapping::SetTracker(Tracking *pTracker)
 
 void LocalMapping::Run()
 {
-
+#ifdef HAVE_ROS
     ros::Rate r(500);
     while(ros::ok())
     {
         // Check if there are keyframes in the queue
         if(CheckNewKeyFrames())
-        {            
+        {
             // Tracking will see that Local Mapping is busy
             SetAcceptKeyFrames(false);
 
@@ -103,6 +107,68 @@ void LocalMapping::Run()
         ResetIfRequested();
         r.sleep();
     }
+#else
+    while(1)
+    {
+        // Check if there are keyframes in the queue
+        if(CheckNewKeyFrames())
+        {
+            // Tracking will see that Local Mapping is busy
+            SetAcceptKeyFrames(false);
+
+            // BoW conversion and insertion in Map
+            ProcessNewKeyFrame();
+
+            // Check recent MapPoints
+            MapPointCulling();
+
+            // Triangulate new MapPoints
+            CreateNewMapPoints();
+
+            // Find more matches in neighbor keyframes and fuse point duplications
+            SearchInNeighbors();
+
+            mbAbortBA = false;
+
+            if(!CheckNewKeyFrames() && !stopRequested())
+            {
+                // Local BA
+                Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA);
+
+                // Check redundant local Keyframes
+                KeyFrameCulling();
+
+                mpMap->SetFlagAfterBA();
+
+                // Tracking will see Local Mapping idle
+                if(!CheckNewKeyFrames())
+                    SetAcceptKeyFrames(true);
+            }
+
+            mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
+        }
+
+        // Safe area to stop
+        if(stopRequested())
+        {
+            Stop();
+
+            while (isStopped()) {
+                boost::unique_lock<boost::mutex> lock(processMutex);
+                processNext.wait_for(lock, boost::chrono::milliseconds(1));
+            }
+
+            SetAcceptKeyFrames(true);
+        }
+
+        ResetIfRequested();
+
+        {
+            boost::unique_lock<boost::mutex> lock(processMutex);
+            processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 500));
+        }
+    }
+#endif // HAVE_ROS
 }
 
 void LocalMapping::InsertKeyFrame(KeyFrame *pKF)
@@ -163,7 +229,7 @@ void LocalMapping::ProcessNewKeyFrame()
                 mlpRecentAddedMapPoints.push_back(pMP);
             }
         }
-    }  
+    }
 
     // Update links in the Covisibility Graph
     mpCurrentKeyFrame->UpdateConnections();
@@ -591,6 +657,7 @@ void LocalMapping::RequestReset()
         mbResetRequested = true;
     }
 
+#ifdef HAVE_ROS
     ros::Rate r(500);
     while(ros::ok())
     {
@@ -601,6 +668,7 @@ void LocalMapping::RequestReset()
         }
         r.sleep();
     }
+#endif // HAVE_ROS
 }
 
 void LocalMapping::ResetIfRequested()

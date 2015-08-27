@@ -23,8 +23,12 @@
 
 #include<opencv2/core/core.hpp>
 #include<opencv2/features2d/features2d.hpp>
+
+#ifdef HAVE_ROS
 #include<sensor_msgs/Image.h>
 #include<sensor_msgs/image_encodings.h>
+#include<tf/transform_broadcaster.h>
+#endif // HAVE_ROS
 
 #include"FramePublisher.h"
 #include"Map.h"
@@ -37,7 +41,9 @@
 #include "Initializer.h"
 #include "MapPublisher.h"
 
-#include<tf/transform_broadcaster.h>
+#include <boost/atomic/atomic.hpp>
+#include <boost/thread/condition_variable.hpp>
+#include <boost/thread/mutex.hpp>
 
 
 namespace ORB_SLAM
@@ -49,9 +55,18 @@ class LocalMapping;
 class LoopClosing;
 
 class Tracking
-{  
+{
 
 public:
+    Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap,
+        const cv::Mat& K, const cv::Mat& distCoeffs, double fps,
+        int nFeatures = 1000,
+        float fScaleFactor = 1.2f,
+        int nLevels = 8,
+        int fastTh = 20,
+        int Score = 1,
+        bool UseMotionModel = true
+        );
     Tracking(ORBVocabulary* pVoc, FramePublisher* pFramePublisher, MapPublisher* pMapPublisher, Map* pMap, string strSettingPath);
 
     enum eTrackingState{
@@ -73,7 +88,7 @@ public:
     void ForceRelocalisation();
 
     eTrackingState mState;
-    eTrackingState mLastProcessedState;    
+    eTrackingState mLastProcessedState;
 
     // Current Frame
     Frame mCurrentFrame;
@@ -88,9 +103,12 @@ public:
 
     void CheckResetByPublishers();
 
+    void Track(const cv::Mat& image);
 
 protected:
+#ifdef HAVE_ROS
     void GrabImage(const sensor_msgs::ImageConstPtr& msg);
+#endif // HAVE_ROS
 
     void FirstInitialization();
     void Initialize();
@@ -102,7 +120,7 @@ protected:
     bool TrackWithMotionModel();
 
     bool RelocalisationRequested();
-    bool Relocalisation();    
+    bool Relocalisation();
 
     void UpdateReference();
     void UpdateReferencePoints();
@@ -164,12 +182,15 @@ protected:
     boost::mutex mMutexForceRelocalisation;
 
     //Reset
-    bool mbPublisherStopped;
-    bool mbReseting;
+    boost::atomic<bool> mbPublisherStopped;
+    boost::atomic<bool> mbReseting;
     boost::mutex mMutexReset;
 
+    boost::condition_variable processNext;
+    boost::mutex processMutex;
+
     //Is relocalisation requested by an external thread? (loop closing)
-    bool mbForceRelocalisation;
+    boost::atomic<bool> mbForceRelocalisation;
 
     //Motion Model
     bool mbMotionModel;
@@ -178,8 +199,10 @@ protected:
     //Color order (true RGB, false BGR, ignored if grayscale)
     bool mbRGB;
 
+#ifdef HAVE_ROS
     // Transfor broadcaster (for visualization in rviz)
     tf::TransformBroadcaster mTfBr;
+#endif // HAVE_ROS
 };
 
 } //namespace ORB_SLAM

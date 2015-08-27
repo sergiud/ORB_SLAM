@@ -22,7 +22,9 @@
 
 #include "KeyFrame.h"
 #include "Thirdparty/DBoW2/DBoW2/BowVector.h"
+#ifdef HAVE_ROS
 #include <ros/ros.h>
+#endif // HAVE_ROS
 
 using namespace std;
 

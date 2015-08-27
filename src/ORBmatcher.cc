@@ -23,12 +23,14 @@
 
 #include<limits.h>
 
+#ifdef HAVE_ROS
 #include<ros/ros.h>
+#endif // HAVE_ROS
 #include<opencv2/core/core.hpp>
 #include<opencv2/features2d/features2d.hpp>
 
 #include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
-
+#include <boost/assert.hpp>
 #include<stdint-gcc.h>
 
 
@@ -61,7 +63,7 @@ int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoint
         if(pMP->isBad())
             continue;
 
-        const int &nPredictedLevel = pMP->mnTrackScaleLevel;    
+        const int &nPredictedLevel = pMP->mnTrackScaleLevel;
 
         // The size of the window will depend on the viewing direction
         float r = RadiusByViewingCos(pMP->mTrackViewCos);
@@ -237,7 +239,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
                             int bin = round(rot*factor);
                             if(bin==HISTO_LENGTH)
                                 bin=0;
-                            ROS_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                            BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
                             rotHist[bin].push_back(bestIdxF);
                         }
                         nmatches++;
@@ -485,7 +487,7 @@ int ORBmatcher::WindowSearch(Frame &F1, Frame &F2, int windowSize, vector<MapPoi
             int bin = round(rot*factor);
             if(bin==HISTO_LENGTH)
                 bin=0;
-            ROS_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+            BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
             rotHist[bin].push_back(bestIdx2);
         }
     }
@@ -671,7 +673,7 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
                     int bin = round(rot*factor);
                     if(bin==HISTO_LENGTH)
                         bin=0;
-                    ROS_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                    BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
                     rotHist[bin].push_back(i1);
                 }
             }
@@ -803,7 +805,7 @@ int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
                                 int bin = round(rot*factor);
                                 if(bin==HISTO_LENGTH)
                                     bin=0;
-                                ROS_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                                BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
                                 rotHist[bin].push_back(idx1);
                             }
                             nmatches++;
@@ -949,7 +951,7 @@ vector<cv::KeyPoint> &vMatchedKeys1, vector<cv::KeyPoint> &vMatchedKeys2, vector
                             int bin = round(rot*factor);
                             if(bin==HISTO_LENGTH)
                                 bin=0;
-                            ROS_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                            BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
                             rotHist[bin].push_back(idx1);
                         }
 
@@ -1119,7 +1121,7 @@ int ORBmatcher::Fuse(KeyFrame *pKF, vector<MapPoint *> &vpMapPoints, float th)
             if(pMPinKF)
             {
                 if(!pMPinKF->isBad())
-                    pMP->Replace(pMPinKF);                
+                    pMP->Replace(pMPinKF);
             }
             else
             {
@@ -1586,13 +1588,13 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
                         int bin = round(rot*factor);
                         if(bin==HISTO_LENGTH)
                             bin=0;
-                        ROS_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                        BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
                         rotHist[bin].push_back(bestIdx2);
                     }
                 }
             }
         }
-    }  
+    }
 
    //Apply rotation consistency
    if(mbCheckOrientation)
@@ -1711,7 +1713,7 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
                         int bin = round(rot*factor);
                         if(bin==HISTO_LENGTH)
                             bin=0;
-                        ROS_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                        BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
                         rotHist[bin].push_back(bestIdx2);
                     }
                 }
