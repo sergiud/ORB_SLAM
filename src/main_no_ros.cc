@@ -237,6 +237,11 @@ int main(int argc, char **argv)
             stop = true;
     }
 
+    localMappingThread.interrupt();
+    loopClosingThread.interrupt();
+    localMappingThread.join();
+    loopClosingThread.join();
+
     if (!trajFileName.empty()) {
         // Save keyframe poses at the end of the execution
         boost::filesystem::ofstream f(trajFileName);

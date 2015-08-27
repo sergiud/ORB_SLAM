@@ -108,65 +108,69 @@ void LocalMapping::Run()
         r.sleep();
     }
 #else
-    while(1)
-    {
-        // Check if there are keyframes in the queue
-        if(CheckNewKeyFrames())
+    try {
+        while(1)
         {
-            // Tracking will see that Local Mapping is busy
-            SetAcceptKeyFrames(false);
-
-            // BoW conversion and insertion in Map
-            ProcessNewKeyFrame();
-
-            // Check recent MapPoints
-            MapPointCulling();
-
-            // Triangulate new MapPoints
-            CreateNewMapPoints();
-
-            // Find more matches in neighbor keyframes and fuse point duplications
-            SearchInNeighbors();
-
-            mbAbortBA = false;
-
-            if(!CheckNewKeyFrames() && !stopRequested())
+            // Check if there are keyframes in the queue
+            if(CheckNewKeyFrames())
             {
-                // Local BA
-                Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA);
+                // Tracking will see that Local Mapping is busy
+                SetAcceptKeyFrames(false);
 
-                // Check redundant local Keyframes
-                KeyFrameCulling();
+                // BoW conversion and insertion in Map
+                ProcessNewKeyFrame();
 
-                mpMap->SetFlagAfterBA();
+                // Check recent MapPoints
+                MapPointCulling();
 
-                // Tracking will see Local Mapping idle
-                if(!CheckNewKeyFrames())
-                    SetAcceptKeyFrames(true);
+                // Triangulate new MapPoints
+                CreateNewMapPoints();
+
+                // Find more matches in neighbor keyframes and fuse point duplications
+                SearchInNeighbors();
+
+                mbAbortBA = false;
+
+                if(!CheckNewKeyFrames() && !stopRequested())
+                {
+                    // Local BA
+                    Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA);
+
+                    // Check redundant local Keyframes
+                    KeyFrameCulling();
+
+                    mpMap->SetFlagAfterBA();
+
+                    // Tracking will see Local Mapping idle
+                    if(!CheckNewKeyFrames())
+                        SetAcceptKeyFrames(true);
+                }
+
+                mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
             }
 
-            mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
-        }
+            // Safe area to stop
+            if(stopRequested())
+            {
+                Stop();
 
-        // Safe area to stop
-        if(stopRequested())
-        {
-            Stop();
+                while (isStopped()) {
+                    boost::unique_lock<boost::mutex> lock(processMutex);
+                    processNext.wait_for(lock, boost::chrono::milliseconds(1));
+                }
 
-            while (isStopped()) {
+                SetAcceptKeyFrames(true);
+            }
+
+            ResetIfRequested();
+
+            {
                 boost::unique_lock<boost::mutex> lock(processMutex);
-                processNext.wait_for(lock, boost::chrono::milliseconds(1));
+                processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 500));
             }
-
-            SetAcceptKeyFrames(true);
         }
-
-        ResetIfRequested();
-
-        {
-            boost::unique_lock<boost::mutex> lock(processMutex);
-            processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 500));
-        }
+    }
+    catch (boost::thread_interrupted&) {
     }
 #endif // HAVE_ROS
 }

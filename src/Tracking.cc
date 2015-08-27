@@ -1285,20 +1285,24 @@ void Tracking::CheckResetByPublishers()
         r.sleep();
     }
 #else
-    while (1) {
-        {
-            boost::mutex::scoped_lock lock(mMutexReset);
-            if(!mbReseting)
+    try {
+        while (1) {
             {
-                mbPublisherStopped=false;
-                break;
+                boost::mutex::scoped_lock lock(mMutexReset);
+                if(!mbReseting)
+                {
+                    mbPublisherStopped=false;
+                    break;
+                }
+            }
+
+            {
+                boost::unique_lock<boost::mutex> lock(processMutex);
+                processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 500));
             }
         }
-
-        {
-            boost::unique_lock<boost::mutex> lock(processMutex);
-            processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 500));
-        }
+    }
+    catch (boost::thread_interrupted&) {
     }
 #endif // HAVE_ROS
 }

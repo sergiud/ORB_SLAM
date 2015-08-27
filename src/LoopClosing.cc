@@ -82,29 +82,33 @@ void LoopClosing::Run()
         r.sleep();
     }
 #else
-    while(1)
-    {
-        // Check if there are keyframes in the queue
-        if(CheckNewKeyFrames())
+    try {
+        while(1)
         {
-            // Detect loop candidates and check covisibility consistency
-            if(DetectLoop())
+            // Check if there are keyframes in the queue
+            if(CheckNewKeyFrames())
             {
-               // Compute similarity transformation [sR|t]
-               if(ComputeSim3())
-               {
-                   // Perform loop fusion and pose graph optimization
-                   CorrectLoop();
-               }
+                // Detect loop candidates and check covisibility consistency
+                if(DetectLoop())
+                {
+                   // Compute similarity transformation [sR|t]
+                   if(ComputeSim3())
+                   {
+                       // Perform loop fusion and pose graph optimization
+                       CorrectLoop();
+                   }
+                }
+            }
+
+            ResetIfRequested();
+
+            {
+                boost::unique_lock<boost::mutex> lock(processMutex);
+                processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 200));
             }
         }
-
-        ResetIfRequested();
-
-        {
-            boost::unique_lock<boost::mutex> lock(processMutex);
-            processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 200));
-        }
+    }
+    catch (boost::thread_interrupted&) {
     }
 #endif // HAVE_ROS
 }
