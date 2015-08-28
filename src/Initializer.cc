@@ -20,11 +20,10 @@
 
 #include "Initializer.h"
 
-#include "Thirdparty/DBoW2/DUtils/Random.h"
-
 #include "Optimizer.h"
 #include "ORBmatcher.h"
 
+#include <boost/random/uniform_int_distribution.hpp>
 #include <boost/bind.hpp>
 #include <boost/thread/thread.hpp>
 
@@ -82,10 +81,12 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     {
         vAvailableIndices = vAllIndices;
 
+        boost::random::uniform_int_distribution<std::size_t> u(0, vAvailableIndices.size() - 1);
+
         // Select a minimum set
         for(size_t j=0; j<8; j++)
         {
-            int randi = DUtils::Random::RandomInt(0,vAvailableIndices.size()-1);
+            std::size_t randi = u(rng_);
             int idx = vAvailableIndices[randi];
 
             mvSets[it][j] = idx;

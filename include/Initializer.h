@@ -24,6 +24,8 @@
 #include<opencv2/opencv.hpp>
 #include "Frame.h"
 
+#include <boost/random/mersenne_twister.hpp>
+
 
 namespace ORB_SLAM
 {
@@ -92,8 +94,9 @@ private:
     int mMaxIterations;
 
     // Ransac sets
-    vector<vector<size_t> > mvSets;   
+    vector<vector<size_t> > mvSets;
 
+    boost::random::mt19937 rng_;
 };
 
 } //namespace ORB_SLAM
