@@ -51,6 +51,9 @@ add_library (ORB_SLAM
   ../src/Tracking.cc
 )
 
+find_library (DBOW2_LIBRARY DBoW2 DOC "DBoW2 library")
+mark_as_advanced (DBOW2_LIBRARY)
+
 add_library (DBoW2 UNKNOWN IMPORTED)
 
 set_target_properties (DBoW2 PROPERTIES IMPORTED_LOCATION ${DBOW2_LIBRARY})
