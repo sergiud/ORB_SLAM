@@ -63,7 +63,7 @@ target_include_directories (ORB_SLAM PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
 )
 
-target_include_directories (ORB_SLAM PUBLIC ${Boost_INCLUDE_DIRS}
+target_include_directories (ORB_SLAM SYSTEM PUBLIC ${Boost_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS} ${G2O_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS})
 target_link_libraries (ORB_SLAM PUBLIC ${Boost_LIBRARIES} ${G2O_SOLVER_CHOLMOD}
   ${G2O_TYPES_SIM3} ${OpenCV_LIBS} DBoW2)
