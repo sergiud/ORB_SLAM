@@ -72,7 +72,7 @@ set_target_properties (ORB_SLAM PROPERTIES CXX_STANDARD 11
   CXX_STANDARD_REQUIRED ON)
 
 add_executable (run_ORB_SLAM
-  ../src/main_no_ros.cc
+  ../src/run_ORB_SLAM.cc
 )
 
 target_link_libraries (run_ORB_SLAM PRIVATE ORB_SLAM)

@@ -2,6 +2,7 @@
 * This file is part of ORB-SLAM.
 *
 * Copyright (C) 2014 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
+* Copyright (C) 2015 Sergiu Dotenco <sergiu.dotenco@fau.de> (University of Erlangen-Nürnberg)
 * For more information see <http://webdiis.unizar.es/~raulmur/orbslam/>
 *
 * ORB-SLAM is free software: you can redistribute it and/or modify
@@ -19,7 +20,6 @@
 */
 
 #include <iostream>
-#include <fstream>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -36,13 +36,14 @@
 
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/format.hpp>
 #include <boost/program_options.hpp>
-#include <boost/thread.hpp>
+#include <boost/thread/thread.hpp>
 
 namespace {
 
 const char* const banner =
-    "Gyroscope Video Stabilizer 1.0\n"
+    "ORB SLAM\n"
     "Copyright (C) 2015 Sergiu Dotenco\n"
     "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
     "This is free software: you are free to change and redistribute it.\n"
@@ -141,34 +142,36 @@ int main(int argc, char **argv)
         std::cerr << "error: " << e.what() << std::endl;
         return EXIT_FAILURE;
     }
-    //Create Frame Publisher for image_view
+
+    // Create Frame Publisher for image_view
     ORB_SLAM::FramePublisher FramePub;
 
-    //Load ORB Vocabulary
-    ORB_SLAM::ORBVocabulary Vocabulary;
+    // Load ORB vocabulary
+    ORB_SLAM::ORBVocabulary vocabulary;
 
     if (!vocabFileName.empty()) {
+        std::cout << boost::format("reading vocabulary %1%") % vocabFileName << std::endl;
         cv::FileStorage fsVoc(vocabFileName.string().c_str(), cv::FileStorage::READ);
 
         if (!fsVoc.isOpened()) {
-            cerr << endl << "Wrong path to vocabulary. Path must be absolut or relative to ORB_SLAM package directory." << endl;
+            std::cerr << std::endl << boost::format("error: failed to load the vocabulary %1%") % vocabFileName << std::endl;
             return EXIT_FAILURE;
         }
 
-        Vocabulary.load(fsVoc);
-        std::cout << "Vocabulary loaded!" << endl << endl;
+        vocabulary.load(fsVoc);
+        std::cout << "vocabulary loaded" << std::endl << std::endl;
     }
 
-    //Create KeyFrame Database
-    ORB_SLAM::KeyFrameDatabase Database(Vocabulary);
+    // Create KeyFrame database
+    ORB_SLAM::KeyFrameDatabase database(vocabulary);
 
-    //Create the map
-    ORB_SLAM::Map World;
+    // Create the map
+    ORB_SLAM::Map world;
 
-    FramePub.SetMap(&World);
+    FramePub.SetMap(&world);
 
     //Create Map Publisher for Rviz
-    ORB_SLAM::MapPublisher MapPub(&World);
+    ORB_SLAM::MapPublisher MapPub(&world);
 
     cv::FileStorage calibFs(calibFileName.string(), cv::FileStorage::READ);
 
@@ -188,21 +191,21 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    //Initialize the Tracking Thread and launch
-    ORB_SLAM::Tracking tracker(&Vocabulary, &FramePub, &MapPub, &World, cv::Mat1f(K), cv::Mat1f(distCoeffs), capture.get(CV_CAP_PROP_FPS),
+    // Initialize the tracking thread and launch
+    ORB_SLAM::Tracking tracker(&vocabulary, &FramePub, &MapPub, &world, cv::Mat1f(K), cv::Mat1f(distCoeffs), capture.get(CV_CAP_PROP_FPS),
             features, scale, levels, fastTh, score, vars.count("no-motion-model") == 0);
 
-    tracker.SetKeyFrameDatabase(&Database);
+    tracker.SetKeyFrameDatabase(&database);
 
-    //Initialize the Local Mapping Thread and launch
-    ORB_SLAM::LocalMapping localMapper(&World);
+    // Initialize the Local Mapping Thread and launch
+    ORB_SLAM::LocalMapping localMapper(&world);
     boost::thread localMappingThread(&ORB_SLAM::LocalMapping::Run,&localMapper);
 
-    //Initialize the Loop Closing Thread and launch
-    ORB_SLAM::LoopClosing loopCloser(&World, &Database, &Vocabulary);
+    // Initialize the Loop Closing Thread and launch
+    ORB_SLAM::LoopClosing loopCloser(&world, &database, &vocabulary);
     boost::thread loopClosingThread(&ORB_SLAM::LoopClosing::Run, &loopCloser);
 
-    //Set pointers between threads
+    // Set pointers between threads
     tracker.SetLocalMapper(&localMapper);
     tracker.SetLoopClosing(&loopCloser);
 
@@ -211,8 +214,6 @@ int main(int argc, char **argv)
 
     loopCloser.SetTracker(&tracker);
     loopCloser.SetLocalMapper(&localMapper);
-
-    //This "main" thread will show the current processed frame and publish the map
 
     cv::Mat image;
     bool stop = false;
@@ -246,8 +247,8 @@ int main(int argc, char **argv)
         // Save keyframe poses at the end of the execution
         boost::filesystem::ofstream f(trajFileName);
 
-        vector<ORB_SLAM::KeyFrame*> vpKFs = World.GetAllKeyFrames();
-        sort(vpKFs.begin(),vpKFs.end(),ORB_SLAM::KeyFrame::lId);
+        vector<ORB_SLAM::KeyFrame*> vpKFs = world.GetAllKeyFrames();
+        std::sort(vpKFs.begin(), vpKFs.end(), ORB_SLAM::KeyFrame::lId);
 
         cout << endl << "Saving Keyframe Trajectory to " <<  trajFileName << endl;
         f << fixed;
