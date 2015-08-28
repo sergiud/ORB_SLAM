@@ -5,6 +5,7 @@ list (APPEND CMAKE_MODULE_PATH
   ${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/g2o/cmake_modules)
 
 find_package (Boost 1.55 REQUIRED chrono filesystem program_options thread system)
+find_package (Cholmod REQUIRED)
 find_package (G2O REQUIRED)
 find_package (OpenCV 2.4 REQUIRED core calib3d imgproc highgui features2d)
 find_package (PkgConfig)
@@ -64,9 +65,12 @@ target_include_directories (ORB_SLAM PUBLIC
 )
 
 target_include_directories (ORB_SLAM SYSTEM PUBLIC ${Boost_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS} ${G2O_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS})
-target_link_libraries (ORB_SLAM PUBLIC ${Boost_LIBRARIES} ${G2O_SOLVER_CHOLMOD}
-  ${G2O_TYPES_SIM3} ${OpenCV_LIBS} DBoW2)
+  ${EIGEN3_INCLUDE_DIRS} ${G2O_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS}
+  ${CHOLMOD_INCLUDE_DIR})
+target_link_libraries (ORB_SLAM PUBLIC ${Boost_LIBRARIES} ${G2O_CORE_LIBRARY}
+  ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_CHOLMOD} ${G2O_TYPES_SIM3}
+  ${G2O_TYPES_SLAM3D} ${G2O_TYPES_SBA} ${OpenCV_LIBS} DBoW2
+  ${CHOLMOD_LIBRARIES})
 
 set_target_properties (ORB_SLAM PROPERTIES CXX_STANDARD 11
   CXX_STANDARD_REQUIRED ON)
