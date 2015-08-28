@@ -150,7 +150,7 @@ int main(int argc, char **argv)
     ORB_SLAM::ORBVocabulary vocabulary;
 
     if (!vocabFileName.empty()) {
-        std::cout << boost::format("reading vocabulary %1%") % vocabFileName << std::endl;
+        std::cout << boost::format("reading vocabulary %1%...") % vocabFileName;
         cv::FileStorage fsVoc(vocabFileName.string().c_str(), cv::FileStorage::READ);
 
         if (!fsVoc.isOpened()) {
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
         }
 
         vocabulary.load(fsVoc);
-        std::cout << "vocabulary loaded" << std::endl << std::endl;
+        std::cout << ' ' << "done" << std::endl;
     }
 
     // Create KeyFrame database
@@ -180,9 +180,6 @@ int main(int argc, char **argv)
 
     calibFs["camera_matrix"] >> K;
     calibFs["distortion_coefficients"] >> distCoeffs;
-
-    std::cout << K << std::endl;
-    std::cout << distCoeffs << std::endl;
 
     cv::VideoCapture capture(inVideoFileName.string());
 
