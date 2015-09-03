@@ -151,14 +151,8 @@ int main(int argc, char **argv)
 
     if (!vocabFileName.empty()) {
         std::cout << boost::format("reading vocabulary %1%...") % vocabFileName;
-        cv::FileStorage fsVoc(vocabFileName.string().c_str(), cv::FileStorage::READ);
+        vocabulary.loadFromTextFile(vocabFileName.string());
 
-        if (!fsVoc.isOpened()) {
-            std::cerr << std::endl << boost::format("error: failed to load the vocabulary %1%") % vocabFileName << std::endl;
-            return EXIT_FAILURE;
-        }
-
-        vocabulary.load(fsVoc);
         std::cout << ' ' << "done" << std::endl;
     }
 
