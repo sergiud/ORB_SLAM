@@ -109,6 +109,7 @@ int main(int argc, char **argv)
         ("level,l", po::value<int>(&levels)->value_name("<number>"), "number of pyramid levels")
         ("threshold,t", po::value<int>(&fastTh)->value_name("<value>"), "FAST threshold")
         ("no-motion-model,m", "disables constant velocity motion model")
+        ("no-video", "do not display the video")
         ("help,h", "show help")
         ("version,v", "show version information")
         ;
@@ -206,6 +207,8 @@ int main(int argc, char **argv)
     loopCloser.SetTracker(&tracker);
     loopCloser.SetLocalMapper(&localMapper);
 
+    bool noVideo = vars.count("no-video") != 0;
+
     cv::Mat image;
     bool stop = false;
 
@@ -222,8 +225,10 @@ int main(int argc, char **argv)
             cv::cvtColor(image, tmp, CV_BGR2GRAY);
             tracker.Track(tmp);
 
-            cv::imshow("ORB_SLAM", FramePub.DrawFrame());
-            cv::waitKey(1);
+            if (!noVideo) {
+                cv::imshow("ORB_SLAM", FramePub.DrawFrame());
+                cv::waitKey(1);
+            }
         }
         else
             stop = true;
