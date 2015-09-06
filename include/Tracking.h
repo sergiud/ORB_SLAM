@@ -101,10 +101,15 @@ public:
     std::vector<cv::Point3f> mvIniP3D;
     Frame mInitialFrame;
 
-
     void CheckResetByPublishers();
 
     void Track(const cv::Mat& image);
+
+    eTrackingState GetState() const;
+    bool IsTracking() const;
+    bool IsLost() const;
+    bool IsInitializing() const;
+    bool IsRunning() const;
 
 protected:
 #ifdef HAVE_ROS

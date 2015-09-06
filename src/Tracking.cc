@@ -1307,4 +1307,29 @@ void Tracking::CheckResetByPublishers()
 #endif // HAVE_ROS
 }
 
+Tracking::eTrackingState Tracking::GetState() const
+{
+    return mState;
+}
+
+bool Tracking::IsTracking() const
+{
+    return mState == WORKING;
+}
+
+bool Tracking::IsLost() const
+{
+    return mState == LOST;
+}
+
+bool Tracking::IsInitializing() const
+{
+    return mState == INITIALIZING;
+}
+
+bool Tracking::IsRunning() const
+{
+    return mState == WORKING || mState == LOST;
+}
+
 } //namespace ORB_SLAM
