@@ -6,8 +6,10 @@
 
 #include <Eigen/Geometry>
 
+#include "ORB_SLAM_export.h"
+
 namespace g2o {
-class EdgeSE3ProjectXYZ : public  BaseBinaryEdge<2, Eigen::Vector2d, VertexSBAPointXYZ, VertexSE3Expmap> {
+class ORB_SLAM_EXPORT EdgeSE3ProjectXYZ : public  BaseBinaryEdge<2, Eigen::Vector2d, VertexSBAPointXYZ, VertexSE3Expmap> {
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 

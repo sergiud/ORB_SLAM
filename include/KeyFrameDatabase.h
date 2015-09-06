@@ -28,6 +28,7 @@
 #include "KeyFrame.h"
 #include "Frame.h"
 #include "ORBVocabulary.h"
+#include "ORB_SLAM_export.h"
 
 #include<boost/thread.hpp>
 
@@ -39,7 +40,7 @@ class KeyFrame;
 class Frame;
 
 
-class KeyFrameDatabase
+class ORB_SLAM_EXPORT KeyFrameDatabase
 {
 public:
 

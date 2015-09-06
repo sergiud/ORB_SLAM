@@ -23,11 +23,11 @@
 
 #include "MapPoint.h"
 #include "KeyFrame.h"
+#include "ORB_SLAM_export.h"
+
 #include<set>
 
 #include<boost/thread.hpp>
-
-
 
 namespace ORB_SLAM
 {
@@ -35,7 +35,7 @@ namespace ORB_SLAM
 class MapPoint;
 class KeyFrame;
 
-class Map
+class ORB_SLAM_EXPORT Map
 {
 public:
     Map();

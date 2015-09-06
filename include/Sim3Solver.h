@@ -25,13 +25,12 @@
 #include <vector>
 
 #include "KeyFrame.h"
-
-
+#include "ORB_SLAM_export.h"
 
 namespace ORB_SLAM
 {
 
-class Sim3Solver
+class ORB_SLAM_EXPORT Sim3Solver
 {
 public:
 

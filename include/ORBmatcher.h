@@ -29,12 +29,12 @@
 #include"MapPoint.h"
 #include"KeyFrame.h"
 #include"Frame.h"
-
+#include "ORB_SLAM_export.h"
 
 namespace ORB_SLAM
 {
 
-class ORBmatcher
+class ORB_SLAM_EXPORT ORBmatcher
 {    
 public:
 

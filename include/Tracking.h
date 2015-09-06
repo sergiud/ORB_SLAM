@@ -40,6 +40,7 @@
 #include"ORBextractor.h"
 #include "Initializer.h"
 #include "MapPublisher.h"
+#include "ORB_SLAM_export.h"
 
 #include <boost/atomic/atomic.hpp>
 #include <boost/thread/condition_variable.hpp>
@@ -54,7 +55,7 @@ class Map;
 class LocalMapping;
 class LoopClosing;
 
-class Tracking
+class ORB_SLAM_EXPORT Tracking
 {
 
 public:

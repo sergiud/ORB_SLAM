@@ -25,11 +25,12 @@
 #include <list>
 #include <opencv/cv.h>
 
+#include "ORB_SLAM_export.h"
 
 namespace ORB_SLAM
 {
 
-class ORBextractor
+class ORB_SLAM_EXPORT ORBextractor
 {
 public:
     

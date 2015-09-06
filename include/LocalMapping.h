@@ -30,7 +30,7 @@
 #include "LoopClosing.h"
 #include "Tracking.h"
 #include "KeyFrameDatabase.h"
-
+#include "ORB_SLAM_export.h"
 
 namespace ORB_SLAM
 {
@@ -39,7 +39,7 @@ class Tracking;
 class LoopClosing;
 class Map;
 
-class LocalMapping
+class ORB_SLAM_EXPORT LocalMapping
 {
 public:
     LocalMapping(Map* pMap);

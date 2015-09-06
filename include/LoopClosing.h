@@ -26,6 +26,7 @@
 #include "Map.h"
 #include "ORBVocabulary.h"
 #include "Tracking.h"
+#include "ORB_SLAM_export.h"
 
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
@@ -42,7 +43,7 @@ class LocalMapping;
 class KeyFrameDatabase;
 
 
-class LoopClosing
+class ORB_SLAM_EXPORT LoopClosing
 {
 public:
 

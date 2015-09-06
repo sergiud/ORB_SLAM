@@ -24,6 +24,7 @@
 #include "Tracking.h"
 #include "MapPoint.h"
 #include "Map.h"
+#include "ORB_SLAM_export.h"
 
 #ifdef HAVE_ROS
 #include "ros/ros.h"
@@ -40,7 +41,7 @@ namespace ORB_SLAM
 
 class Tracking;
 
-class FramePublisher
+class ORB_SLAM_EXPORT FramePublisher
 {
 public:
     FramePublisher();

@@ -29,11 +29,12 @@
 #include"Map.h"
 #include"MapPoint.h"
 #include"KeyFrame.h"
+#include "ORB_SLAM_export.h"
 
 namespace ORB_SLAM
 {
 
-class MapPublisher
+class ORB_SLAM_EXPORT MapPublisher
 {
 public:
     MapPublisher(Map* pMap);

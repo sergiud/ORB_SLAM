@@ -23,6 +23,7 @@
 
 #include<opencv2/opencv.hpp>
 #include "Frame.h"
+#include "ORB_SLAM_export.h"
 
 #include <boost/random/mersenne_twister.hpp>
 
@@ -30,7 +31,7 @@
 namespace ORB_SLAM
 {
 
-class Initializer
+class ORB_SLAM_EXPORT Initializer
 {
     typedef pair<int,int> Match;
 

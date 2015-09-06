@@ -1,5 +1,7 @@
 #include <g2o/types/sim3/types_seven_dof_expmap.h>
 
+#include "ORB_SLAM_export.h"
+
 namespace g2o {
 
   /**
@@ -7,7 +9,7 @@ namespace g2o {
  * the parameterization for the increments constructed is a 7d vector
  * (x,y,z,qx,qy,qz) (note that we leave out the w part of the quaternion.
  */
-  class VertexSim3ExpmapTwoCameras : public BaseVertex<7, Sim3>
+  class ORB_SLAM_EXPORT VertexSim3ExpmapTwoCameras : public BaseVertex<7, Sim3>
   {
   public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -55,7 +57,7 @@ namespace g2o {
   protected:
   };
 
-  class EdgeSim3TwoCameras : public BaseBinaryEdge<7, Sim3, VertexSim3ExpmapTwoCameras, VertexSim3ExpmapTwoCameras>
+  class ORB_SLAM_EXPORT EdgeSim3TwoCameras : public BaseBinaryEdge<7, Sim3, VertexSim3ExpmapTwoCameras, VertexSim3ExpmapTwoCameras>
   {
   public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -85,7 +87,7 @@ namespace g2o {
   };
 
 /**/
-class EdgeInverseSim3ProjectXYZ : public  BaseBinaryEdge<2, Eigen::Vector2d,  VertexSBAPointXYZ, VertexSim3ExpmapTwoCameras>
+class ORB_SLAM_EXPORT EdgeInverseSim3ProjectXYZ : public  BaseBinaryEdge<2, Eigen::Vector2d,  VertexSBAPointXYZ, VertexSim3ExpmapTwoCameras>
 {
   public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
