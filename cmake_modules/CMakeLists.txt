@@ -1,21 +1,41 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 3.0)
 project (ORB_SLAM)
 
 list (APPEND CMAKE_MODULE_PATH
   ${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/g2o/cmake_modules)
+list (APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
-find_package (Boost 1.55 REQUIRED chrono filesystem program_options thread system)
-find_package (Cholmod REQUIRED)
-find_package (G2O REQUIRED)
+find_package (Boost 1.55 REQUIRED atomic chrono date_time filesystem program_options thread system)
+find_package (g2o 0.1 REQUIRED)
 find_package (OpenCV 2.4 REQUIRED core calib3d imgproc highgui features2d)
+find_package (TBB)
 find_package (PkgConfig)
 
 if (PKGCONFIG_FOUND)
   pkg_check_modules (EIGEN3 REQUIRED eigen3>=3.2)
+else (PKGCONFIG_FOUND)
+  find_package (Eigen3 3.2 REQUIRED)
+  set (EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 endif (PKGCONFIG_FOUND)
 
 add_library (ORB_SLAM
+  ../Thirdparty/DBoW2/DBoW2/BowVector.cpp
+  ../Thirdparty/DBoW2/DBoW2/BowVector.h
+  ../Thirdparty/DBoW2/DBoW2/FClass.h
+  ../Thirdparty/DBoW2/DBoW2/FORB.cpp
+  ../Thirdparty/DBoW2/DBoW2/FORB.h
+  ../Thirdparty/DBoW2/DBoW2/FeatureVector.cpp
+  ../Thirdparty/DBoW2/DBoW2/FeatureVector.h
+  ../Thirdparty/DBoW2/DBoW2/ScoringObject.cpp
+  ../Thirdparty/DBoW2/DBoW2/ScoringObject.h
+  ../Thirdparty/DBoW2/DBoW2/TemplatedVocabulary.h
+  ../Thirdparty/DBoW2/DUtils/Random.cpp
+  ../Thirdparty/DBoW2/DUtils/Random.h
+  ../Thirdparty/DBoW2/DUtils/Timestamp.cpp
+  ../Thirdparty/DBoW2/DUtils/Timestamp.h
   ../include/Converter.h
+  ../include/EdgeSE3ProjectXYZ.h
+  ../include/EdgeSim3ProjectXYZ.h
   ../include/Frame.h
   ../include/FramePublisher.h
   ../include/Initializer.h
@@ -34,6 +54,8 @@ add_library (ORB_SLAM
   ../include/Sim3Solver.h
   ../include/Tracking.h
   ../src/Converter.cc
+  ../src/EdgeSE3ProjectXYZ.cc
+  ../src/EdgeSim3ProjectXYZ.cc
   ../src/Frame.cc
   ../src/FramePublisher.cc
   ../src/Initializer.cc
@@ -52,12 +74,9 @@ add_library (ORB_SLAM
   ../src/Tracking.cc
 )
 
-find_library (DBOW2_LIBRARY DBoW2 DOC "DBoW2 library")
-mark_as_advanced (DBOW2_LIBRARY)
-
-add_library (DBoW2 UNKNOWN IMPORTED)
-
-set_target_properties (DBoW2 PROPERTIES IMPORTED_LOCATION ${DBOW2_LIBRARY})
+if (MSVC)
+  target_compile_definitions (ORB_SLAM PRIVATE _SCL_SECURE_NO_WARNINGS)
+endif (MSVC)
 
 target_include_directories (ORB_SLAM PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
@@ -65,15 +84,13 @@ target_include_directories (ORB_SLAM PUBLIC
 )
 
 target_include_directories (ORB_SLAM SYSTEM PUBLIC ${Boost_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS} ${G2O_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS}
-  ${CHOLMOD_INCLUDE_DIR})
-target_link_libraries (ORB_SLAM PUBLIC ${Boost_LIBRARIES} ${G2O_CORE_LIBRARY}
-  ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_CHOLMOD} ${G2O_TYPES_SIM3}
-  ${G2O_TYPES_SLAM3D} ${G2O_TYPES_SBA} ${OpenCV_LIBS} DBoW2
-  ${CHOLMOD_LIBRARIES})
+  ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries (ORB_SLAM PUBLIC ${Boost_LIBRARIES} g2o::solver_cholmod
+  g2o::core g2o::types_sba g2o::types_slam3d g2o::types_sim3 ${OpenCV_LIBS})
 
-set_target_properties (ORB_SLAM PROPERTIES CXX_STANDARD 11
-  CXX_STANDARD_REQUIRED ON)
+if (TBB_FOUND)
+  target_link_libraries (ORB_SLAM PUBLIC ${TBB_LIBRARIES})
+endif (TBB_FOUND)
 
 add_executable (run_ORB_SLAM
   ../src/run_ORB_SLAM.cc

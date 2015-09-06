@@ -55,7 +55,7 @@ void usage(const boost::program_options::options_description& desc)
     std::cout
         << banner <<
         "\n"
-        "usage: gvs [options] input gyro calibration"
+        "usage: run_ORB_SLAM [options] video"
         "\n"
         << desc <<
         "\n"
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
         ("scale,s", po::value<float>(&scale)->value_name("<factor>"), "scale factor")
         ("level,l", po::value<int>(&levels)->value_name("<number>"), "number of pyramid levels")
         ("threshold,t", po::value<int>(&fastTh)->value_name("<value>"), "FAST threshold")
-        ("no-motion-model,m", "disables constant velocity motion mode")
+        ("no-motion-model,m", "disables constant velocity motion model")
         ("help,h", "show help")
         ("version,v", "show version information")
         ;

@@ -19,6 +19,8 @@
 */
 
 #include "Optimizer.h"
+#include "EdgeSE3ProjectXYZ.h"
+#include "EdgeSim3ProjectXYZ.h"
 
 #include <g2o/core/block_solver.h>
 #include <g2o/core/optimization_algorithm_levenberg.h>
@@ -561,7 +563,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
 
     vector<g2o::Sim3,Eigen::aligned_allocator<g2o::Sim3> > vScw(nMaxKFid+1);
     vector<g2o::Sim3,Eigen::aligned_allocator<g2o::Sim3> > vCorrectedSwc(nMaxKFid+1);
-    vector<g2o::VertexSim3Expmap*> vpVertices(nMaxKFid+1);
+    vector<g2o::VertexSim3ExpmapTwoCameras*> vpVertices(nMaxKFid+1);
 
     const int minFeat = 100;
 
@@ -571,7 +573,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
         KeyFrame* pKF = vpKFs[i];
         if(pKF->isBad())
             continue;
-        g2o::VertexSim3Expmap* VSim3 = new g2o::VertexSim3Expmap();
+        g2o::VertexSim3ExpmapTwoCameras* VSim3 = new g2o::VertexSim3ExpmapTwoCameras();
 
         int nIDi = pKF->mnId;
 
@@ -623,7 +625,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
             g2o::Sim3 Sjw = vScw[nIDj];
             g2o::Sim3 Sji = Sjw * Swi;
 
-            g2o::EdgeSim3* e = new g2o::EdgeSim3();
+            g2o::EdgeSim3TwoCameras* e = new g2o::EdgeSim3TwoCameras();
             e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDj)));
             e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDi)));
             e->setMeasurement(Sji);
@@ -665,7 +667,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
 
             g2o::Sim3 Sji = Sjw * Swi;
 
-            g2o::EdgeSim3* e = new g2o::EdgeSim3();
+            g2o::EdgeSim3TwoCameras* e = new g2o::EdgeSim3TwoCameras();
             e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDj)));
             e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDi)));
             e->setMeasurement(Sji);
@@ -688,7 +690,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
                     Slw = vScw[pLKF->mnId];
 
                 g2o::Sim3 Sli = Slw * Swi;
-                g2o::EdgeSim3* el = new g2o::EdgeSim3();
+                g2o::EdgeSim3TwoCameras* el = new g2o::EdgeSim3TwoCameras();
                 el->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(pLKF->mnId)));
                 el->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDi)));
                 el->setMeasurement(Sli);
@@ -717,7 +719,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
 
                     g2o::Sim3 Sni = Snw * Swi;
 
-                    g2o::EdgeSim3* en = new g2o::EdgeSim3();
+                    g2o::EdgeSim3TwoCameras* en = new g2o::EdgeSim3TwoCameras();
                     en->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(pKFn->mnId)));
                     en->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDi)));
                     en->setMeasurement(Sni);
@@ -811,7 +813,7 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
     cv::Mat t2w = pKF2->GetTranslation();
 
     // SET SIMILARITY VERTEX
-    g2o::VertexSim3Expmap * vSim3 = new g2o::VertexSim3Expmap();
+    g2o::VertexSim3ExpmapTwoCameras * vSim3 = new g2o::VertexSim3ExpmapTwoCameras();
     vSim3->setEstimate(g2oS12);
     vSim3->setId(0);
     vSim3->setFixed(false);
@@ -980,7 +982,7 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
     }
 
     // Recover optimized Sim3
-    g2o::VertexSim3Expmap* vSim3_recov = static_cast<g2o::VertexSim3Expmap*>(optimizer.vertex(0));
+    g2o::VertexSim3ExpmapTwoCameras* vSim3_recov = static_cast<g2o::VertexSim3ExpmapTwoCameras*>(optimizer.vertex(0));
     g2oS12= vSim3_recov->estimate();
 
     return nIn;

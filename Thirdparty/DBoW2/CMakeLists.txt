@@ -25,7 +25,7 @@ find_package(OpenCV REQUIRED core)
 
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
-add_library(DBoW2 SHARED ${SRCS_DBOW2} ${SRCS_DUTILS})
+add_library(DBoW2 ${SRCS_DBOW2} ${SRCS_DUTILS})
 target_include_directories(DBoW2 PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(DBoW2 PUBLIC ${OpenCV_LIBS})
 

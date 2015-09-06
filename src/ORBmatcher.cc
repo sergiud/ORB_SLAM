@@ -31,8 +31,6 @@
 
 #include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
 #include <boost/assert.hpp>
-#include<stdint-gcc.h>
-
 
 using namespace std;
 

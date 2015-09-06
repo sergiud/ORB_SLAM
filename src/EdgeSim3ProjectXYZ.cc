@@ -24,35 +24,37 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "types_seven_dof_expmap.h"
+//#include <g2o/types/sim3/types_seven_dof_expmap.h"
 
-#include "../../core/factory.h"
-#include "../../stuff/macros.h"
+#include <g2o/core/factory.h>
+#include <g2o/stuff/macros.h>
+
+#include "EdgeSim3ProjectXYZ.h"
 
 namespace g2o {
 
-  G2O_USE_TYPE_GROUP(sba);
+  //G2O_USE_TYPE_GROUP(sba);
   
-  G2O_REGISTER_TYPE_GROUP(sim3);
+  //G2O_REGISTER_TYPE_GROUP(sim3);
 
-  G2O_REGISTER_TYPE(VERTEX_SIM3:EXPMAP, VertexSim3Expmap);
-  G2O_REGISTER_TYPE(EDGE_SIM3:EXPMAP, EdgeSim3);
-  G2O_REGISTER_TYPE(EDGE_PROJECT_SIM3_XYZ:EXPMAP, EdgeSim3ProjectXYZ);
+  //G2O_REGISTER_TYPE(VERTEX_SIM3:EXPMAP, VertexSim3ExpmapTwoCameras);
+  //G2O_REGISTER_TYPE(EDGE_SIM3:EXPMAP, EdgeSim3);
+  //G2O_REGISTER_TYPE(EDGE_PROJECT_SIM3_XYZ:EXPMAP, EdgeSim3ProjectXYZ);
   
-  VertexSim3Expmap::VertexSim3Expmap() : BaseVertex<7, Sim3>()
+  VertexSim3ExpmapTwoCameras::VertexSim3ExpmapTwoCameras() : BaseVertex<7, Sim3>()
   {
     _marginalized=false;
     _fix_scale = false;
   }
 
 
-  EdgeSim3::EdgeSim3() :
-      BaseBinaryEdge<7, Sim3, VertexSim3Expmap, VertexSim3Expmap>()
-  {
-  }
+  //EdgeSim3::EdgeSim3() :
+  //    BaseBinaryEdge<7, Sim3, VertexSim3ExpmapTwoCameras, VertexSim3ExpmapTwoCameras>()
+  //{
+  //}
 
 
-  bool VertexSim3Expmap::read(std::istream& is)
+  bool VertexSim3ExpmapTwoCameras::read(std::istream& is)
   {
     Vector7d cam2world;
     for (int i=0; i<6; i++){
@@ -78,7 +80,7 @@ namespace g2o {
     return true;
   }
 
-  bool VertexSim3Expmap::write(std::ostream& os) const
+  bool VertexSim3ExpmapTwoCameras::write(std::ostream& os) const
   {
     Sim3 cam2world(estimate().inverse());
     Vector7d lv=cam2world.log();
@@ -96,7 +98,7 @@ namespace g2o {
     return os.good();
   }
 
-  bool EdgeSim3::read(std::istream& is)
+  bool EdgeSim3TwoCameras::read(std::istream& is)
   {
     Vector7d v7;
     for (int i=0; i<7; i++){
@@ -116,7 +118,7 @@ namespace g2o {
     return true;
   }
 
-  bool EdgeSim3::write(std::ostream& os) const
+  bool EdgeSim3TwoCameras::write(std::ostream& os) const
   {
     Sim3 cam2world(measurement().inverse());
     Vector7d v7 = cam2world.log();
@@ -130,47 +132,47 @@ namespace g2o {
     }
     return os.good();
   }
-
+  
   /**Sim3ProjectXYZ*/
 
-  EdgeSim3ProjectXYZ::EdgeSim3ProjectXYZ() :
-  BaseBinaryEdge<2, Vector2d, VertexSBAPointXYZ, VertexSim3Expmap>()
-  {
-  }
+  //EdgeSim3ProjectXYZ::EdgeSim3ProjectXYZ() :
+  //BaseBinaryEdge<2, Eigen::Vector2d, VertexSBAPointXYZ, VertexSim3ExpmapTwoCameras>()
+  //{
+  //}
 
-  bool EdgeSim3ProjectXYZ::read(std::istream& is)
-  {
-    for (int i=0; i<2; i++)
-    {
-      is >> _measurement[i];
-    }
+  //bool EdgeSim3ProjectXYZ::read(std::istream& is)
+  //{
+  //  for (int i=0; i<2; i++)
+  //  {
+  //    is >> _measurement[i];
+  //  }
 
-    for (int i=0; i<2; i++)
-      for (int j=i; j<2; j++) {
-  is >> information()(i,j);
-      if (i!=j)
-        information()(j,i)=information()(i,j);
-    }
-    return true;
-  }
+  //  for (int i=0; i<2; i++)
+  //    for (int j=i; j<2; j++) {
+  //is >> information()(i,j);
+  //    if (i!=j)
+  //      information()(j,i)=information()(i,j);
+  //  }
+  //  return true;
+  //}
 
-  bool EdgeSim3ProjectXYZ::write(std::ostream& os) const
-  {
-    for (int i=0; i<2; i++){
-      os  << _measurement[i] << " ";
-    }
+  //bool EdgeSim3ProjectXYZ::write(std::ostream& os) const
+  //{
+  //  for (int i=0; i<2; i++){
+  //    os  << _measurement[i] << " ";
+  //  }
 
-    for (int i=0; i<2; i++)
-      for (int j=i; j<2; j++){
-  os << " " <<  information()(i,j);
-    }
-    return os.good();
-  }
+  //  for (int i=0; i<2; i++)
+  //    for (int j=i; j<2; j++){
+  //os << " " <<  information()(i,j);
+  //  }
+  //  return os.good();
+  //}
 
 /**InverseSim3ProjectXYZ*/
 
   EdgeInverseSim3ProjectXYZ::EdgeInverseSim3ProjectXYZ() :
-  BaseBinaryEdge<2, Vector2d, VertexSBAPointXYZ, VertexSim3Expmap>()
+  BaseBinaryEdge<2, Eigen::Vector2d, VertexSBAPointXYZ, VertexSim3ExpmapTwoCameras>()
   {
   }
 
@@ -206,7 +208,7 @@ namespace g2o {
 
 //  void EdgeSim3ProjectXYZ::linearizeOplus()
 //  {
-//    VertexSim3Expmap * vj = static_cast<VertexSim3Expmap *>(_vertices[1]);
+//    VertexSim3ExpmapTwoCameras * vj = static_cast<VertexSim3ExpmapTwoCameras *>(_vertices[1]);
 //    Sim3 T = vj->estimate();
 
 //    VertexPointXYZ* vi = static_cast<VertexPointXYZ*>(_vertices[0]);
