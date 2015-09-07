@@ -45,7 +45,7 @@ class ORB_SLAM_EXPORT Frame
 public:
     Frame();
     Frame(const Frame &frame);
-    Frame(const cv::Mat &im, const double &timeStamp, ORBextractor* extractor, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef);
+    Frame(const cv::Mat &im, const double &timeStamp, ORBextractor* extractor, ORBVocabulary* voc, const cv::Mat &K, const cv::Mat &distCoef);
 
     ORBVocabulary* mpORBvocabulary;
     ORBextractor* mpORBextractor;
