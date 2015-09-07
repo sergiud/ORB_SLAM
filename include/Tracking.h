@@ -110,6 +110,7 @@ public:
     bool IsLost() const;
     bool IsInitializing() const;
     bool IsRunning() const;
+    cv::Mat GetCurrentCameraPose() const;
 
 protected:
 #ifdef HAVE_ROS

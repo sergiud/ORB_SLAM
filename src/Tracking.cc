@@ -1332,4 +1332,10 @@ bool Tracking::IsRunning() const
     return mState == WORKING || mState == LOST;
 }
 
+cv::Mat Tracking::GetCurrentCameraPose() const
+{
+    cv::Mat t = mCurrentFrame.mTcw;
+    return t.empty() ? cv::Mat1f::eye(4, 4) : t;
+}
+
 } //namespace ORB_SLAM
