@@ -1341,4 +1341,9 @@ cv::Mat Tracking::GetCurrentCameraPose() const
     return t.empty() ? cv::Mat1f::eye(4, 4) : t;
 }
 
+const std::vector<cv::KeyPoint>& Tracking::GetKeyPoints() const
+{
+    return mCurrentFrame.mvKeys;
+}
+
 } //namespace ORB_SLAM
