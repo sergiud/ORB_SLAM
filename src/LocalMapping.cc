@@ -89,7 +89,8 @@ void LocalMapping::Run()
                     SetAcceptKeyFrames(true);
             }
 
-            mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
+            if (mpLoopCloser)
+                mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
         }
 
         // Safe area to stop
@@ -147,7 +148,8 @@ void LocalMapping::Run()
                         SetAcceptKeyFrames(true);
                 }
 
-                mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
+                if (mpLoopCloser)
+                    mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
             }
 
             // Safe area to stop

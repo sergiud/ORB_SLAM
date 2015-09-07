@@ -1231,14 +1231,16 @@ void Tracking::Reset()
 #else
 #if 0
     while (!mbPublisherStopped)
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(2));
 #endif
 #endif // HAVE_ROS
 
     // Reset Local Mapping
-    mpLocalMapper->RequestReset();
+    if (mpLocalMapper)
+        mpLocalMapper->RequestReset();
     // Reset Loop Closing
-    mpLoopClosing->RequestReset();
+    if (mpLoopClosing)
+        mpLoopClosing->RequestReset();
     // Clear BoW Database
     mpKeyFrameDB->clear();
     // Clear Map (this erase MapPoints and KeyFrames)
