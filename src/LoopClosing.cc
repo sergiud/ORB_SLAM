@@ -102,10 +102,8 @@ void LoopClosing::Run()
 
             ResetIfRequested();
 
-            {
-                boost::unique_lock<boost::mutex> lock(processMutex);
-                processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 200));
-            }
+            boost::unique_lock<boost::mutex> lock(processMutex);
+            processNext.wait_for(lock, boost::chrono::milliseconds(5));
         }
     }
     catch (boost::thread_interrupted&) {
@@ -623,6 +621,11 @@ void LoopClosing::RequestReset()
         }
         r.sleep();
     }
+#else
+    boost::mutex::scoped_lock lock2(mMutexReset);
+    resetDone.wait(lock2);
+
+    processNext.notify_one();
 #endif // HAVE_ROS
 }
 
@@ -631,9 +634,11 @@ void LoopClosing::ResetIfRequested()
     boost::mutex::scoped_lock lock(mMutexReset);
     if(mbResetRequested)
     {
+        boost::mutex::scoped_lock lock(mMutexLoopQueue);
         mlpLoopKeyFrameQueue.clear();
         mLastLoopKFid=0;
         mbResetRequested=false;
+        resetDone.notify_one();
     }
 }
 

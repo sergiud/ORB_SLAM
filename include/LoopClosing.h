@@ -94,6 +94,7 @@ protected:
     boost::mutex mMutexLoopQueue;
 
     boost::condition_variable processNext;
+    boost::condition_variable resetDone;
     boost::mutex processMutex;
 
     std::vector<float> mvfLevelSigmaSquare;

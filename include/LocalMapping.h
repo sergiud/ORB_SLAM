@@ -101,6 +101,7 @@ protected:
 
     boost::mutex mMutexNewKFs;
     boost::condition_variable processNext;
+    boost::condition_variable resetDone;
     boost::mutex processMutex;
 
     bool mbAbortBA;

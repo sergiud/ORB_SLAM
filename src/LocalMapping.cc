@@ -155,9 +155,9 @@ void LocalMapping::Run()
             {
                 Stop();
 
-                while (isStopped()) {
+                {
                     boost::unique_lock<boost::mutex> lock(processMutex);
-                    processNext.wait_for(lock, boost::chrono::milliseconds(1));
+                    processNext.wait(lock, !boost::bind(&LocalMapping::isStopped, this));
                 }
 
                 SetAcceptKeyFrames(true);
@@ -167,7 +167,7 @@ void LocalMapping::Run()
 
             {
                 boost::unique_lock<boost::mutex> lock(processMutex);
-                processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 500));
+                processNext.wait_for(lock, boost::chrono::milliseconds(2));
             }
         }
     }
@@ -545,6 +545,7 @@ void LocalMapping::RequestStop()
     mbStopRequested = true;
     boost::mutex::scoped_lock lock2(mMutexNewKFs);
     mbAbortBA = true;
+    processNext.notify_one();
 }
 
 void LocalMapping::Stop()
@@ -673,6 +674,11 @@ void LocalMapping::RequestReset()
         }
         r.sleep();
     }
+#else
+    boost::mutex::scoped_lock lock2(mMutexReset);
+    resetDone.wait(lock2);
+
+    processNext.notify_one();
 #endif // HAVE_ROS
 }
 
@@ -684,6 +690,7 @@ void LocalMapping::ResetIfRequested()
         mlNewKeyFrames.clear();
         mlpRecentAddedMapPoints.clear();
         mbResetRequested=false;
+        resetDone.notify_one();
     }
 }
 

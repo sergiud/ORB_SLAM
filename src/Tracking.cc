@@ -1286,7 +1286,7 @@ void Tracking::CheckResetByPublishers()
     }
 #else
     try {
-        while (1) {
+        while (0) {
             {
                 boost::mutex::scoped_lock lock(mMutexReset);
                 if(!mbReseting)
@@ -1297,10 +1297,13 @@ void Tracking::CheckResetByPublishers()
             }
 
             {
-                boost::unique_lock<boost::mutex> lock(processMutex);
-                processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 500));
             }
         }
+
+        //boost::unique_lock<boost::mutex> lock(processMutex);
+        //resetDone.wait(lock);
+
+        mbPublisherStopped = false;
     }
     catch (boost::thread_interrupted&) {
     }
