@@ -88,10 +88,10 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     if(mbMotionModel)
     {
         mVelocity = cv::Mat::eye(4,4,CV_32F);
-        cout << endl << "Motion Model: Enabled" << endl << endl;
+        BOOST_LOG(log_) << "motion model: enabled";
     }
     else
-        cout << endl << "Motion Model: Disabled (not recommended, change settings UseMotionModel: 1)" << endl << endl;
+        BOOST_LOG(log_) << "motion model: disabled (not recommended)";
 }
 
 Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap, string strSettingPath):
@@ -300,7 +300,7 @@ void Tracking::Track(const cv::Mat& im)
         {
             if(mpMap->KeyFramesInMap()<=5)
             {
-                std::cerr << "error: camera lost; resetting..." << std::endl;
+                BOOST_LOG(log_) << "error: camera lost; resetting...";
                 Reset();
                 return;
             }
@@ -454,7 +454,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         {
             if(mpMap->KeyFramesInMap()<=5)
             {
-                std::cerr << "error: camera lost. resetting..." << std::endl;
+                BOOST_LOG(log_) << "error: camera lost. resetting...";
                 Reset();
                 return;
             }
@@ -614,7 +614,7 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     pKFcur->UpdateConnections();
 
     // Bundle Adjustment
-    std::cout << boost::format("New Map created with %d points") % mpMap->MapPointsInMap() << std::endl;
+    BOOST_LOG(log_) << boost::format("new map created with %d points") % mpMap->MapPointsInMap();
 
     Optimizer::GlobalBundleAdjustemnt(mpMap,20);
 
@@ -624,7 +624,7 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
 
     if(medianDepth<0 || pKFcur->TrackedMapPoints()<100)
     {
-        std::cerr << "Wrong initialization, reseting..." << std::endl;
+        BOOST_LOG(log_) << "wrong initialization, reseting...";
         Reset();
         return;
     }
@@ -717,7 +717,7 @@ bool Tracking::TrackPreviousFrame()
     mCurrentFrame.mvpMapPoints=vpMapPointMatches;
 
     if(nmatches<10) {
-        std::clog << "warning: not enough matches" << std::endl;
+        BOOST_LOG(log_) << "warning: not enough matches";
         return false;
     }
 
