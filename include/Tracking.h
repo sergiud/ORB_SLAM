@@ -114,7 +114,7 @@ public:
     bool IsRunning() const;
     cv::Mat GetCurrentCameraPose() const;
     //! Tracked keypoints used for visualization.
-    const std::vector<cv::KeyPoint>& GetKeyPoints() const;
+    std::vector<cv::KeyPoint> GetKeyPoints() const;
 
 protected:
 #ifdef HAVE_ROS

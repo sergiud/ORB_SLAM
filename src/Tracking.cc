@@ -39,9 +39,12 @@
 #include<fstream>
 #include <stdexcept>
 
+#include <boost/foreach.hpp>
 #include <boost/format.hpp>
+#include <boost/iterator/zip_iterator.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <boost/throw_exception.hpp>
-
+#include <boost/tuple/tuple.hpp>
 
 using namespace std;
 
@@ -1343,9 +1346,24 @@ cv::Mat Tracking::GetCurrentCameraPose() const
     return t.empty() ? cv::Mat1f::eye(4, 4) : t;
 }
 
-const std::vector<cv::KeyPoint>& Tracking::GetKeyPoints() const
+std::vector<cv::KeyPoint> Tracking::GetKeyPoints() const
 {
-    return mCurrentFrame.mvKeys;
+    std::vector<cv::KeyPoint> kps;
+    kps.reserve(mCurrentFrame.mvpMapPoints.size());
+
+    boost::tuple<MapPoint*, bool, cv::KeyPoint> p;
+
+    BOOST_FOREACH(p, boost::make_iterator_range(
+                boost::make_zip_iterator(boost::make_tuple(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvbOutlier.begin(), mCurrentFrame.mvKeys.begin())),
+                boost::make_zip_iterator(boost::make_tuple(mCurrentFrame.mvpMapPoints.end(), mCurrentFrame.mvbOutlier.end(), mCurrentFrame.mvKeys.end())))) {
+        bool outlier = p.get<1>();
+
+        if (p.get<0>() && !outlier) {
+            kps.push_back(p.get<2>());
+        }
+    }
+
+    return kps;
 }
 
 } //namespace ORB_SLAM
