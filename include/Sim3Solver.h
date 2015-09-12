@@ -24,6 +24,8 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 
+#include <boost/random/mersenne_twister.hpp>
+
 #include "KeyFrame.h"
 #include "ORB_SLAM_export.h"
 
@@ -128,6 +130,7 @@ protected:
     cv::Mat mK1;
     cv::Mat mK2;
 
+    boost::random::mt19937 mGenerator;
 };
 
 } //namespace ORB_SLAM

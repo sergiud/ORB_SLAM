@@ -27,10 +27,10 @@
 #include <ros/ros.h>
 #endif // HAVE_ROS
 
+#include <boost/random/uniform_int_distribution.hpp>
+
 #include "KeyFrame.h"
 #include "ORBmatcher.h"
-
-#include "Thirdparty/DBoW2/DUtils/Random.h"
 
 namespace ORB_SLAM
 {
@@ -164,10 +164,12 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
 
         vAvailableIndices = mvAllIndices;
 
+        boost::random::uniform_int_distribution<std::size_t> dist(0, vAvailableIndices.size() - 1);
+
         // Get min set of points
         for(short i = 0; i < 3; ++i)
         {
-            int randi = DUtils::Random::RandomInt(0, vAvailableIndices.size()-1);
+            std::size_t randi = dist(mGenerator);
 
             int idx = vAvailableIndices[randi];
 
