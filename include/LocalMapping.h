@@ -69,6 +69,8 @@ public:
 
     void InterruptBA();
 
+    void WaitForCompletion();
+
 protected:
 
     bool CheckNewKeyFrames();
@@ -102,12 +104,14 @@ protected:
     boost::mutex mMutexNewKFs;
     boost::condition_variable processNext;
     boost::condition_variable resetDone;
+    boost::condition_variable mcProcessingDone;
     boost::mutex processMutex;
 
     bool mbAbortBA;
     boost::atomic<bool> mbStopped;
     boost::atomic<bool> mbStopRequested;
     boost::mutex mMutexStop;
+    boost::mutex mRun;
 
     boost::atomic<bool> mbAcceptKeyFrames;
     boost::mutex mMutexAccept;

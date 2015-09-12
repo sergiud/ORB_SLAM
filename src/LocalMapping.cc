@@ -113,6 +113,8 @@ void LocalMapping::Run()
     try {
         while(1)
         {
+            boost::mutex::scoped_lock runLock(mRun);
+
             // Check if there are keyframes in the queue
             if(CheckNewKeyFrames())
             {
@@ -151,6 +153,9 @@ void LocalMapping::Run()
                 if (mpLoopCloser)
                     mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
             }
+
+            runLock.unlock();
+            mcProcessingDone.notify_all();
 
             // Safe area to stop
             if(stopRequested())
@@ -694,6 +699,12 @@ void LocalMapping::ResetIfRequested()
         mbResetRequested=false;
         resetDone.notify_one();
     }
+}
+
+void LocalMapping::WaitForCompletion()
+{
+    boost::mutex::scoped_lock lock(mRun);
+    mcProcessingDone.wait(lock);
 }
 
 } //namespace ORB_SLAM
