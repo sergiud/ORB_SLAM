@@ -164,11 +164,10 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
 
         vAvailableIndices = mvAllIndices;
 
-        boost::random::uniform_int_distribution<std::size_t> dist(0, vAvailableIndices.size() - 1);
-
         // Get min set of points
         for(short i = 0; i < 3; ++i)
         {
+            boost::random::uniform_int_distribution<std::size_t> dist(0, vAvailableIndices.size() - 1);
             std::size_t randi = dist(mGenerator);
 
             int idx = vAvailableIndices[randi];

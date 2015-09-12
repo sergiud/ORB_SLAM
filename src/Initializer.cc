@@ -81,12 +81,12 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     {
         vAvailableIndices = vAllIndices;
 
-        boost::random::uniform_int_distribution<std::size_t> u(0, vAvailableIndices.size() - 1);
-
         // Select a minimum set
         for(size_t j=0; j<8; j++)
         {
-            std::size_t randi = u(rng_);
+            boost::random::uniform_int_distribution<std::size_t> dist(0, vAvailableIndices.size() - 1);
+
+            std::size_t randi = dist(rng_);
             int idx = vAvailableIndices[randi];
 
             mvSets[it][j] = idx;
