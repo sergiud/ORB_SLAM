@@ -85,6 +85,8 @@ void LoopClosing::Run()
     try {
         while(1)
         {
+            boost::this_thread::interruption_point();
+
             // Check if there are keyframes in the queue
             if(CheckNewKeyFrames())
             {
@@ -99,6 +101,8 @@ void LoopClosing::Run()
                    }
                 }
             }
+
+            boost::this_thread::interruption_point();
 
             ResetIfRequested();
 

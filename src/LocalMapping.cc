@@ -113,6 +113,8 @@ void LocalMapping::Run()
     try {
         while(1)
         {
+            boost::this_thread::interruption_point();
+
             // Check if there are keyframes in the queue
             if(CheckNewKeyFrames())
             {
@@ -151,6 +153,8 @@ void LocalMapping::Run()
                 if (mpLoopCloser)
                     mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
             }
+
+            boost::this_thread::interruption_point();
 
             // Safe area to stop
             if(stopRequested())
