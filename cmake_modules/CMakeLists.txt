@@ -5,6 +5,18 @@ list (APPEND CMAKE_MODULE_PATH
   ${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/g2o/cmake_modules)
 list (APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
+set (MAJOR_VERSION 1)
+set (MINOR_VERSION 0)
+set (VERSION_PATCH 0)
+
+set (SHORT_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}")
+
+if (NOT VERSION_PATCH EQUAL 0)
+  set (SHORT_VERSION "${SHORT_VERSION}.${VERSION_PATCH}")
+endif (NOT VERSION_PATCH EQUAL 0)
+
+set (VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${VERSION_PATCH}")
+
 include (CMakePackageConfigHelpers)
 include (GenerateExportHeader)
 
@@ -84,6 +96,8 @@ add_library (ORB_SLAM
 
 set_target_properties (ORB_SLAM PROPERTIES CXX_STANDARD 11)
 set_target_properties (ORB_SLAM PROPERTIES CXX_STANDARD_REQUIRED ON)
+set_target_properties (ORB_SLAM PROPERTIES SOVERSION ${MAJOR_VERSION})
+set_target_properties (ORB_SLAM PROPERTIES VERSION ${VERSION})
 
 if (MSVC)
   target_compile_definitions (ORB_SLAM PRIVATE _SCL_SECURE_NO_WARNINGS)
@@ -133,7 +147,7 @@ configure_package_config_file (orb_slam-config.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/orb_slam-config.cmake
   INSTALL_DESTINATION lib/cmake/ORB_SLAM)
 write_basic_package_version_file (orb_slam-config-version.cmake
-  VERSION 1.0 COMPATIBILITY SameMajorVersion)
+  VERSION ${VERSION} COMPATIBILITY SameMajorVersion)
 
 export (TARGETS ORB_SLAM NAMESPACE ORB_SLAM:: FILE orb_slam-targets.cmake)
 export (PACKAGE ORB_SLAM)
