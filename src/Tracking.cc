@@ -617,7 +617,7 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     pKFcur->UpdateConnections();
 
     // Bundle Adjustment
-    BOOST_LOG(log_) << boost::format("new map created with %d points") % mpMap->MapPointsInMap();
+    BOOST_LOG(log_) << str(boost::format("new map created with %d points") % mpMap->MapPointsInMap());
 
     Optimizer::GlobalBundleAdjustemnt(mpMap,20);
 
