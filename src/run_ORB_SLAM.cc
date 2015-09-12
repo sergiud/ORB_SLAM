@@ -34,6 +34,7 @@
 #include "ORBVocabulary.h"
 #include "Tracking.h"
 
+#include <boost/bind.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/format.hpp>
@@ -189,13 +190,15 @@ int main(int argc, char **argv)
 
     tracker.SetKeyFrameDatabase(&database);
 
+    boost::thread_group threads;
+
     // Initialize the Local Mapping Thread and launch
     ORB_SLAM::LocalMapping localMapper(&world);
-    boost::thread localMappingThread(&ORB_SLAM::LocalMapping::Run,&localMapper);
+    threads.create_thread(boost::bind(&ORB_SLAM::LocalMapping::Run,&localMapper));
 
     // Initialize the Loop Closing Thread and launch
     ORB_SLAM::LoopClosing loopCloser(&world, &database, &vocabulary);
-    boost::thread loopClosingThread(&ORB_SLAM::LoopClosing::Run, &loopCloser);
+    threads.create_thread(boost::bind(&ORB_SLAM::LoopClosing::Run, &loopCloser));
 
     // Set pointers between threads
     tracker.SetLocalMapper(&localMapper);
@@ -234,10 +237,8 @@ int main(int argc, char **argv)
             stop = true;
     }
 
-    localMappingThread.interrupt();
-    loopClosingThread.interrupt();
-    localMappingThread.join();
-    loopClosingThread.join();
+    threads.interrupt_all();
+    threads.join_all();
 
     if (!trajFileName.empty()) {
         // Save keyframe poses at the end of the execution
