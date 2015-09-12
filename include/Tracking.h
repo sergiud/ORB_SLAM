@@ -43,6 +43,8 @@
 #include "ORB_SLAM_export.h"
 
 #include <boost/atomic/atomic.hpp>
+#include <boost/log/sources/logger.hpp>
+#include <boost/log/sources/record_ostream.hpp>
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/mutex.hpp>
 
@@ -112,7 +114,7 @@ public:
     bool IsRunning() const;
     cv::Mat GetCurrentCameraPose() const;
     //! Tracked keypoints used for visualization.
-    const std::vector<cv::KeyPoint>& GetKeyPoints() const;
+    std::vector<cv::KeyPoint> GetKeyPoints() const;
 
 protected:
 #ifdef HAVE_ROS
@@ -212,6 +214,7 @@ protected:
     // Transfor broadcaster (for visualization in rviz)
     tf::TransformBroadcaster mTfBr;
 #endif // HAVE_ROS
+    boost::log::sources::logger log_;
 };
 
 } //namespace ORB_SLAM

@@ -20,11 +20,19 @@ set (VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${VERSION_PATCH}")
 include (CMakePackageConfigHelpers)
 include (GenerateExportHeader)
 
-find_package (Boost 1.55 REQUIRED atomic chrono date_time filesystem program_options thread system)
+find_package (Boost 1.55 REQUIRED atomic chrono date_time filesystem log
+  program_options thread system)
 find_package (g2o 0.1 REQUIRED)
 find_package (OpenCV 2.4 REQUIRED core calib3d imgproc highgui features2d)
 find_package (TBB)
 find_package (PkgConfig)
+
+add_definitions (-DBOOST_ALL_NO_LIB)
+add_definitions (-DBOOST_FILESYSTEM_NO_DEPRECATED)
+
+if (NOT Boost_USE_STATIC_LIBS OR NOT DEFINED Boost_USE_STATIC_LIBS)
+  add_definitions (-DBOOST_ALL_DYN_LINK)
+endif (NOT Boost_USE_STATIC_LIBS OR NOT DEFINED Boost_USE_STATIC_LIBS)
 
 if (PKGCONFIG_FOUND)
   pkg_check_modules (EIGEN3 REQUIRED eigen3>=3.2)
