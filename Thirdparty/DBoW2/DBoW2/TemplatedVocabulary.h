@@ -17,6 +17,8 @@
 #ifndef __D_T_TEMPLATED_VOCABULARY__
 #define __D_T_TEMPLATED_VOCABULARY__
 
+#include <opencv/cv.h>
+
 #include <cassert>
 
 #include <vector>
@@ -24,7 +26,6 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
-#include <opencv/cv.h>
 #include <limits>
 
 #include <boost/random/mersenne_twister.hpp>
