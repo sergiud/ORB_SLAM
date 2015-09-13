@@ -27,11 +27,14 @@
 #include <opencv/cv.h>
 #include <limits>
 
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/scoped_ptr.hpp>
+
 #include "FeatureVector.h"
 #include "BowVector.h"
 #include "ScoringObject.h"
-
-#include "../DUtils/Random.h"
 
 using namespace std;
 
@@ -378,7 +381,7 @@ protected:
    *   overriden by inherited classes.
    */
   virtual void initiateClusters(const vector<pDescriptor> &descriptors,
-    vector<TDescriptor> &clusters) const;
+    vector<TDescriptor> &clusters);
   
   /**
    * Creates k clusters from the given descriptor sets by running the
@@ -387,7 +390,7 @@ protected:
    * @param clusters resulting clusters
    */
   void initiateClustersKMpp(const vector<pDescriptor> &descriptors, 
-    vector<TDescriptor> &clusters) const;
+    vector<TDescriptor> &clusters);
   
   /**
    * Create the words of the vocabulary once the tree has been built
@@ -417,7 +420,7 @@ protected:
   ScoringType m_scoring;
   
   /// Object for computing scores
-  GeneralScoring* m_scoring_object;
+  boost::scoped_ptr<GeneralScoring> m_scoring_object;
   
   /// Tree nodes
   std::vector<Node> m_nodes;
@@ -426,6 +429,8 @@ protected:
   /// this condition holds: m_words[wid]->word_id == wid
   std::vector<Node*> m_words;
   
+  /// Random number generator;
+  boost::random::mt19937 m_generator;
 };
 
 // --------------------------------------------------------------------------
@@ -433,8 +438,7 @@ protected:
 template<class TDescriptor, class F>
 TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary
   (int k, int L, WeightingType weighting, ScoringType scoring)
-  : m_k(k), m_L(L), m_weighting(weighting), m_scoring(scoring),
-  m_scoring_object(NULL)
+  : m_k(k), m_L(L), m_weighting(weighting), m_scoring(scoring)
 {
   createScoringObject();
 }
@@ -443,7 +447,7 @@ TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary
 
 template<class TDescriptor, class F>
 TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary
-  (const std::string &filename): m_scoring_object(NULL)
+  (const std::string &filename)
 {
   load(filename);
 }
@@ -452,7 +456,7 @@ TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary
 
 template<class TDescriptor, class F>
 TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary
-  (const char *filename): m_scoring_object(NULL)
+  (const char *filename)
 {
   load(filename);
 }
@@ -462,33 +466,32 @@ TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary
 template<class TDescriptor, class F>
 void TemplatedVocabulary<TDescriptor,F>::createScoringObject()
 {
-  delete m_scoring_object;
-  m_scoring_object = NULL;
+  m_scoring_object.reset();
   
   switch(m_scoring)
   {
     case L1_NORM: 
-      m_scoring_object = new L1Scoring;
+      m_scoring_object.reset(new L1Scoring);
       break;
       
     case L2_NORM:
-      m_scoring_object = new L2Scoring;
+      m_scoring_object.reset(new L2Scoring);
       break;
     
     case CHI_SQUARE:
-      m_scoring_object = new ChiSquareScoring;
+      m_scoring_object.reset(new ChiSquareScoring);
       break;
       
     case KL:
-      m_scoring_object = new KLScoring;
+      m_scoring_object.reset(new KLScoring);
       break;
       
     case BHATTACHARYYA:
-      m_scoring_object = new BhattacharyyaScoring;
+      m_scoring_object.reset(new BhattacharyyaScoring);
       break;
       
     case DOT_PRODUCT:
-      m_scoring_object = new DotProductScoring;
+      m_scoring_object.reset(new DotProductScoring);
       break;
     
   }
@@ -516,7 +519,6 @@ void TemplatedVocabulary<TDescriptor,F>::setWeightingType(WeightingType type)
 template<class TDescriptor, class F>
 TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary(
   const TemplatedVocabulary<TDescriptor, F> &voc)
-  : m_scoring_object(NULL)
 {
   *this = voc;
 }
@@ -526,7 +528,6 @@ TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary(
 template<class TDescriptor, class F>
 TemplatedVocabulary<TDescriptor,F>::~TemplatedVocabulary()
 {
-  delete m_scoring_object;
 }
 
 // --------------------------------------------------------------------------
@@ -822,7 +823,7 @@ void TemplatedVocabulary<TDescriptor,F>::HKmeansStep(NodeId parent_id,
 
 template<class TDescriptor, class F>
 void TemplatedVocabulary<TDescriptor, F>::initiateClusters
-  (const vector<pDescriptor> &descriptors, vector<TDescriptor> &clusters) const
+  (const vector<pDescriptor> &descriptors, vector<TDescriptor> &clusters)
 {
   initiateClustersKMpp(descriptors, clusters);  
 }
@@ -831,7 +832,7 @@ void TemplatedVocabulary<TDescriptor, F>::initiateClusters
 
 template<class TDescriptor, class F>
 void TemplatedVocabulary<TDescriptor,F>::initiateClustersKMpp(
-  const vector<pDescriptor> &pfeatures, vector<TDescriptor> &clusters) const
+  const vector<pDescriptor> &pfeatures, vector<TDescriptor> &clusters)
 {
   // Implements kmeans++ seeding algorithm
   // Algorithm:
@@ -844,15 +845,14 @@ void TemplatedVocabulary<TDescriptor,F>::initiateClustersKMpp(
   // 5. Now that the initial centers have been chosen, proceed using standard k-means 
   //    clustering.
 
-  DUtils::Random::SeedRandOnce();
-
   clusters.resize(0);
   clusters.reserve(m_k);
   vector<double> min_dists(pfeatures.size(), std::numeric_limits<double>::max());
   
   // 1.
   
-  int ifeature = DUtils::Random::RandomInt(0, pfeatures.size()-1);
+  boost::random::uniform_int_distribution<std::size_t> dist(0, pfeatures.size() - 1);
+  int ifeature = dist(m_generator);
   
   // create first cluster
   clusters.push_back(*pfeatures[ifeature]);
@@ -884,10 +884,11 @@ void TemplatedVocabulary<TDescriptor,F>::initiateClustersKMpp(
 
     if(dist_sum > 0)
     {
+      boost::random::uniform_real_distribution<double> dist(0, dist_sum);
       double cut_d;
       do
       {
-        cut_d = DUtils::Random::RandomValue<double>(0, dist_sum);
+        cut_d = dist(m_generator);
       } while(cut_d == 0.0);
 
       double d_up_now = 0;
