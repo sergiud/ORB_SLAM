@@ -1,6 +1,10 @@
 cmake_minimum_required (VERSION 3.1)
 project (ORB_SLAM)
 
+if (POLICY CMP0063)
+  cmake_policy (SET CMP0063 NEW)
+endif (POLICY CMP0063)
+
 list (APPEND CMAKE_MODULE_PATH
   ${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/g2o/cmake_modules)
 list (APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
@@ -98,6 +102,8 @@ set_target_properties (ORB_SLAM PROPERTIES CXX_STANDARD 11)
 set_target_properties (ORB_SLAM PROPERTIES CXX_STANDARD_REQUIRED ON)
 set_target_properties (ORB_SLAM PROPERTIES SOVERSION ${MAJOR_VERSION})
 set_target_properties (ORB_SLAM PROPERTIES VERSION ${VERSION})
+set_target_properties (ORB_SLAM PROPERTIES CXX_VISIBILITY_PRESET hidden)
+set_target_properties (ORB_SLAM PROPERTIES VISIBILITY_INLINES_HIDDEN ON)
 
 if (MSVC)
   target_compile_definitions (ORB_SLAM PRIVATE _SCL_SECURE_NO_WARNINGS)
