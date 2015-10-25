@@ -6,7 +6,11 @@ See our project webpage: http://webdiis.unizar.es/~raulmur/orbslam/
 
 ###Related Publications:
 
-[1] Raúl Mur-Artal, J. M. M. Montiel and Juan D. Tardós. **ORB-SLAM: A Versatile and Accurate Monocular SLAM System**. *IEEE Transactions on Robotics (Accepted). 2015. arXiv preprint: http://arxiv.org/abs/1502.00956*
+[1] Raúl Mur-Artal, J. M. M. Montiel and Juan D. Tardós. **ORB-SLAM: A Versatile and Accurate Monocular SLAM System**. *IEEE Transactions on Robotics,* vol. 31, no. 5, pp. 1147-1163, 2015. 
+
+DOI: 10.1109/TRO.2015.2463671.
+
+Link to pdf: http://webdiis.unizar.es/~raulmur/MurMontielTardosTRO15.pdf
 
 
 #1. License
@@ -20,7 +24,11 @@ If you use ORB-SLAM in an academic work, please cite:
     @article{murAcceptedTRO2015,
       title={{ORB-SLAM}: a Versatile and Accurate Monocular {SLAM} System},
       author={Mur-Artal, Ra\'ul, Montiel, J. M. M. and Tard\'os, Juan D.},
-      journal={IEEE Transaction on Robotics (to appear). arXiv preprint arXiv:1502.00956},
+      journal={IEEE Transactions on Robotics},
+      volume={31},
+      number={5},
+      pages={1147--1163},
+      doi = {10.1109/TRO.2015.2463671},
       year={2015}
      }
 
@@ -86,12 +94,14 @@ It only depends on OpenCV, but it should be included in the ROS distribution.
 
 6. Build ORB_SLAM. In the ORB_SLAM root execute:
 
+	**If you use ROS Indigo, remove the depency of opencv2 in the manifest.xml.**
+
 		mkdir build
 		cd build
 		cmake .. -DROS_BUILD_TYPE=Release
 		make
 
-	*Tip: Set your favorite compilation flags in line 12 and 13 of* `Thirdparty/DBoW2/CMakeLists.txt` (by default -03 -march=native)
+	*Tip: Set your favorite compilation flags in line 12 and 13 of* `./CMakeLists.txt` (by default -03 -march=native)
 
 #4. Usage
 
