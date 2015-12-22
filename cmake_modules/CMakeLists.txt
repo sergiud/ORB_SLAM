@@ -22,7 +22,7 @@ include (GenerateExportHeader)
 
 find_package (Boost 1.55 REQUIRED atomic chrono date_time filesystem program_options thread system)
 find_package (g2o 0.1 REQUIRED)
-find_package (OpenCV 2.4 REQUIRED core calib3d imgproc highgui features2d)
+find_package (OpenCV 3.0 REQUIRED core calib3d imgproc highgui features2d)
 find_package (TBB)
 find_package (PkgConfig)
 
