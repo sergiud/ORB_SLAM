@@ -34,6 +34,8 @@ find_package (PkgConfig)
 add_definitions (-DBOOST_ALL_NO_LIB)
 add_definitions (-DBOOST_FILESYSTEM_NO_DEPRECATED)
 
+set (CMAKE_DEBUG_POSTFIX _debug)
+
 if (NOT Boost_USE_STATIC_LIBS OR NOT DEFINED Boost_USE_STATIC_LIBS)
   add_definitions (-DBOOST_ALL_DYN_LINK)
 endif (NOT Boost_USE_STATIC_LIBS OR NOT DEFINED Boost_USE_STATIC_LIBS)
