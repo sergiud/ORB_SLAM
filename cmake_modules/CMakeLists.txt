@@ -70,20 +70,6 @@ set (ORB_SLAM_HDRS
 )
 
 add_library (ORB_SLAM
-  ../Thirdparty/DBoW2/DBoW2/BowVector.cpp
-  ../Thirdparty/DBoW2/DBoW2/BowVector.h
-  ../Thirdparty/DBoW2/DBoW2/FClass.h
-  ../Thirdparty/DBoW2/DBoW2/FORB.cpp
-  ../Thirdparty/DBoW2/DBoW2/FORB.h
-  ../Thirdparty/DBoW2/DBoW2/FeatureVector.cpp
-  ../Thirdparty/DBoW2/DBoW2/FeatureVector.h
-  ../Thirdparty/DBoW2/DBoW2/ScoringObject.cpp
-  ../Thirdparty/DBoW2/DBoW2/ScoringObject.h
-  ../Thirdparty/DBoW2/DBoW2/TemplatedVocabulary.h
-  ../Thirdparty/DBoW2/DUtils/Random.cpp
-  ../Thirdparty/DBoW2/DUtils/Random.h
-  ../Thirdparty/DBoW2/DUtils/Timestamp.cpp
-  ../Thirdparty/DBoW2/DUtils/Timestamp.h
   ${ORB_SLAM_HDRS}
   ../src/Converter.cc
   ../src/EdgeSE3ProjectXYZ.cc
@@ -124,10 +110,14 @@ target_include_directories (ORB_SLAM PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
 
+add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/DBoW2
+  ${CMAKE_CURRENT_BINARY_DIR}/DBoW2)
+
 target_include_directories (ORB_SLAM SYSTEM PUBLIC ${Boost_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 target_link_libraries (ORB_SLAM PUBLIC ${Boost_LIBRARIES} g2o::solver_cholmod
-  g2o::core g2o::types_sba g2o::types_slam3d g2o::types_sim3 ${OpenCV_LIBS})
+  g2o::core g2o::types_sba g2o::types_slam3d g2o::types_sim3 ${OpenCV_LIBS}
+  DBoW2 DUtils)
 
 if (TBB_FOUND)
   target_link_libraries (ORB_SLAM PUBLIC ${TBB_LIBRARIES})
@@ -159,7 +149,8 @@ set (g2o_DEPENDENCY "find_dependency (g2o ${g2o_VERSION})")
 
 configure_package_config_file (orb_slam-config.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/orb_slam-config.cmake
-  INSTALL_DESTINATION lib/cmake/ORB_SLAM)
+  INSTALL_DESTINATION lib/cmake/ORB_SLAM
+  NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 write_basic_package_version_file (orb_slam-config-version.cmake
   VERSION ${VERSION} COMPATIBILITY SameMajorVersion)
 

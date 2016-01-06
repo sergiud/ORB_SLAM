@@ -1,31 +1,20 @@
-cmake_minimum_required(VERSION 3.0)
-project(DBoW2)
+cmake_minimum_required (VERSION 3.0)
+project (DBoW2)
 
-set(HDRS_DBOW2
-  DBoW2/BowVector.h
-  DBoW2/FORB.h
-  DBoW2/FClass.h
-  DBoW2/FeatureVector.h
-  DBoW2/ScoringObject.h
-  DBoW2/TemplatedVocabulary.h)
-set(SRCS_DBOW2
-  DBoW2/BowVector.cpp
-  DBoW2/FORB.cpp
-  DBoW2/FeatureVector.cpp
-  DBoW2/ScoringObject.cpp)
+set (MAJOR_VERSION 1)
+set (MINOR_VERSION 0)
+set (VERSION_PATCH 0)
 
-set(HDRS_DUTILS
-  DUtils/Random.h
-  DUtils/Timestamp.h)
-set(SRCS_DUTILS
-  DUtils/Random.cpp
-  DUtils/Timestamp.cpp)
+set (SHORT_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}")
 
-find_package(OpenCV REQUIRED core)
+if (NOT VERSION_PATCH EQUAL 0)
+  set (SHORT_VERSION "${SHORT_VERSION}.${VERSION_PATCH}")
+endif (NOT VERSION_PATCH EQUAL 0)
 
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+set (VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${VERSION_PATCH}")
 
-add_library(DBoW2 ${SRCS_DBOW2} ${SRCS_DUTILS})
-target_include_directories(DBoW2 PUBLIC ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(DBoW2 PUBLIC ${OpenCV_LIBS})
+include (CMakePackageConfigHelpers)
+include (GenerateExportHeader)
 
+add_subdirectory (DUtils)
+add_subdirectory (DBoW2)

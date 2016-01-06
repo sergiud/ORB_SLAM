@@ -14,7 +14,7 @@
 #include <map>
 #include <vector>
 
-#include <ORB_SLAM_export.h>
+#include <DBoW2_export.h>
 
 namespace DBoW2 {
 
@@ -55,7 +55,7 @@ enum ScoringType
 };
 
 /// Vector of words to represent images
-class ORB_SLAM_EXPORT BowVector:
+class DBOW2_EXPORT BowVector:
 	public std::map<WordId, WordValue>
 {
 public:

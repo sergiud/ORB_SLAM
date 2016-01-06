@@ -11,12 +11,15 @@
 #define __D_TIMESTAMP__
 
 #include <iostream>
+
+#include <DUtils_export.h>
+
 using namespace std;
 
 namespace DUtils {
 
 /// Timestamp
-class Timestamp
+class DUTILS_EXPORT Timestamp
 {
 public:
 

@@ -16,12 +16,12 @@
 
 #include "FClass.h"
 
-#include <ORB_SLAM_export.h>
+#include <DBoW2_export.h>
 
 namespace DBoW2 {
 
 /// Functions to manipulate ORB descriptors
-class ORB_SLAM_EXPORT FORB: protected FClass
+class DBOW2_EXPORT FORB: protected FClass
 {
 public:
 

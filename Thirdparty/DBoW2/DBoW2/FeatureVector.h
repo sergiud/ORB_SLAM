@@ -15,12 +15,12 @@
 #include <vector>
 #include <iostream>
 
-#include <ORB_SLAM_export.h>
+#include <DBoW2_export.h>
 
 namespace DBoW2 {
 
 /// Vector of nodes with indexes of local features
-class ORB_SLAM_EXPORT FeatureVector: 
+class DBOW2_EXPORT FeatureVector: 
   public std::map<NodeId, std::vector<unsigned int> >
 {
 public:
