@@ -21,7 +21,9 @@
 #include "Frame.h"
 #include "Converter.h"
 
+#ifdef HAVE_ROS
 #include <ros/ros.h>
+#endif // ROS
 
 namespace ORB_SLAM
 {
@@ -53,10 +55,10 @@ Frame::Frame(const Frame &frame)
 }
 
 
-Frame::Frame(cv::Mat &im_, const double &timeStamp, ORBextractor* extractor, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef)
-    :mpORBvocabulary(voc),mpORBextractor(extractor), im(im_),mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone())
+Frame::Frame(const cv::Mat &im_, const double &timeStamp, ORBextractor* extractor, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef)
+    :mpORBvocabulary(voc),mpORBextractor(extractor), im(im_),mTimeStamp(timeStamp), mK(K),mDistCoef(distCoef)
 {
-    // Exctract ORB  
+    // Exctract ORB
     (*mpORBextractor)(im,cv::Mat(),mvKeys,mDescriptors);
 
     N = mvKeys.size();
@@ -86,7 +88,7 @@ Frame::Frame(cv::Mat &im_, const double &timeStamp, ORBextractor* extractor, ORB
     }
 
 
-    mnId=nNextId++;    
+    mnId=nNextId++;
 
     //Scale Levels Info
     mnScaleLevels = mpORBextractor->GetLevels();
@@ -98,7 +100,7 @@ Frame::Frame(cv::Mat &im_, const double &timeStamp, ORBextractor* extractor, ORB
     mvLevelSigma2[0]=1.0f;
     for(int i=1; i<mnScaleLevels; i++)
     {
-        mvScaleFactors[i]=mvScaleFactors[i-1]*mfScaleFactor;        
+        mvScaleFactors[i]=mvScaleFactors[i-1]*mfScaleFactor;
         mvLevelSigma2[i]=mvScaleFactors[i]*mvScaleFactors[i];
     }
 
@@ -128,7 +130,7 @@ Frame::Frame(cv::Mat &im_, const double &timeStamp, ORBextractor* extractor, ORB
 }
 
 void Frame::UpdatePoseMatrices()
-{ 
+{
     mRcw = mTcw.rowRange(0,3).colRange(0,3);
     mtcw = mTcw.rowRange(0,3).col(3);
     mOw = -mRcw.t()*mtcw;
@@ -139,7 +141,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     pMP->mbTrackInView = false;
 
     // 3D in absolute coordinates
-    cv::Mat P = pMP->GetWorldPos(); 
+    cv::Mat P = pMP->GetWorldPos();
 
     // 3D in camera coordinates
     const cv::Mat Pc = mRcw*P+mtcw;

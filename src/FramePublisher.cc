@@ -25,8 +25,10 @@
 #include <opencv2/highgui/highgui.hpp>
 
 #include<boost/thread.hpp>
+#ifdef HAVE_ROS
 #include<ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
+#endif // HAVE_ROS
 
 namespace ORB_SLAM
 {
@@ -37,7 +39,9 @@ FramePublisher::FramePublisher()
     mIm = cv::Mat(480,640,CV_8UC3, cv::Scalar(0,0,0));
     mbUpdated = true;
 
+#ifdef HAVE_ROS
     mImagePub = mNH.advertise<sensor_msgs::Image>("ORB_SLAM/Frame",10,true);
+#endif // HAVE_ROS
 
     PublishFrame();
 }
@@ -75,7 +79,7 @@ cv::Mat FramePublisher::DrawFrame()
         mIm.copyTo(im);
 
         if(mState==Tracking::NOT_INITIALIZED)
-        {            
+        {
             vIniKeys = mvIniKeys;
         }
         else if(mState==Tracking::INITIALIZING)
@@ -108,7 +112,7 @@ cv::Mat FramePublisher::DrawFrame()
                 cv::line(im,vIniKeys[i].pt,vCurrentKeys[vMatches[i]].pt,
                         cv::Scalar(0,255,0));
             }
-        }        
+        }
     }
     else if(state==Tracking::WORKING) //TRACKING
     {
@@ -142,6 +146,7 @@ cv::Mat FramePublisher::DrawFrame()
 
 void FramePublisher::PublishFrame()
 {
+#ifdef HAVE_ROS
     cv::Mat im = DrawFrame();
     cv_bridge::CvImage rosImage;
     rosImage.image = im.clone();
@@ -150,6 +155,7 @@ void FramePublisher::PublishFrame()
 
     mImagePub.publish(rosImage.toImageMsg());
     ros::spinOnce();
+#endif // HAVE_ROS
 }
 
 void FramePublisher::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)

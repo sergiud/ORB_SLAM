@@ -1,9 +1,11 @@
 # Find the header files
 
 FIND_PATH(G2O_INCLUDE_DIR g2o/core/base_vertex.h
+  HINTS
   ${G2O_ROOT}/include
   $ENV{G2O_ROOT}/include
   $ENV{G2O_ROOT}
+  PATHS
   /usr/local/include
   /usr/include
   /opt/local/include
@@ -20,7 +22,7 @@ MACRO(FIND_G2O_LIBRARY MYLIBRARY MYLIBRARYNAME)
 
   FIND_LIBRARY("${MYLIBRARY}_DEBUG"
     NAMES "g2o_${MYLIBRARYNAME}_d"
-    PATHS
+    HINTS
     ${G2O_ROOT}/lib/Debug
     ${G2O_ROOT}/lib
     $ENV{G2O_ROOT}/lib/Debug
@@ -41,10 +43,10 @@ MACRO(FIND_G2O_LIBRARY MYLIBRARY MYLIBRARYNAME)
     /sw/local/lib
     /sw/lib
     )
-  
+
   FIND_LIBRARY(${MYLIBRARY}
     NAMES "g2o_${MYLIBRARYNAME}"
-    PATHS
+    HINTS
     ${G2O_ROOT}/lib/Release
     ${G2O_ROOT}/lib
     $ENV{G2O_ROOT}/lib/Release
@@ -65,13 +67,13 @@ MACRO(FIND_G2O_LIBRARY MYLIBRARY MYLIBRARYNAME)
     /sw/local/lib
     /sw/lib
     )
-  
+
   IF(NOT ${MYLIBRARY}_DEBUG)
     IF(MYLIBRARY)
       SET(${MYLIBRARY}_DEBUG ${MYLIBRARY})
     ENDIF(MYLIBRARY)
   ENDIF( NOT ${MYLIBRARY}_DEBUG)
-  
+
 ENDMACRO(FIND_G2O_LIBRARY LIBRARY LIBRARYNAME)
 
 # Find the core elements

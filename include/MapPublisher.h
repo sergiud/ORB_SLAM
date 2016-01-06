@@ -21,8 +21,10 @@
 #ifndef MAPPUBLISHER_H
 #define MAPPUBLISHER_H
 
+#ifdef HAVE_ROS
 #include<ros/ros.h>
 #include <visualization_msgs/Marker.h>
+#endif // HAVE_ROS
 
 #include"Map.h"
 #include"MapPoint.h"
@@ -50,6 +52,7 @@ private:
     bool isCamUpdated();
     void ResetCamFlag();
 
+#ifdef HAVE_ROS
     ros::NodeHandle nh;
     ros::Publisher publisher;
 
@@ -60,6 +63,7 @@ private:
     visualization_msgs::Marker mCovisibilityGraph;
     visualization_msgs::Marker mMST;
     visualization_msgs::Marker mCurrentCamera;
+#endif // HAVE_ROS
 
     float fCameraSize;
     float fPointSize;

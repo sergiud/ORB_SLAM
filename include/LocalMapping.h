@@ -21,11 +21,14 @@
 #ifndef LOCALMAPPING_H
 #define LOCALMAPPING_H
 
+#include <boost/atomic/atomic.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/condition_variable.hpp>
+
 #include "KeyFrame.h"
 #include "Map.h"
 #include "LoopClosing.h"
 #include "Tracking.h"
-#include <boost/thread.hpp>
 #include "KeyFrameDatabase.h"
 
 
@@ -96,15 +99,16 @@ protected:
 
     std::list<MapPoint*> mlpRecentAddedMapPoints;
 
-    boost::mutex mMutexNewKFs;    
+    boost::mutex mMutexNewKFs;
+    boost::condition_variable processNext;
+    boost::mutex processMutex;
 
     bool mbAbortBA;
-
-    bool mbStopped;
-    bool mbStopRequested;
+    boost::atomic<bool> mbStopped;
+    boost::atomic<bool> mbStopRequested;
     boost::mutex mMutexStop;
 
-    bool mbAcceptKeyFrames;
+    boost::atomic<bool> mbAcceptKeyFrames;
     boost::mutex mMutexAccept;
 };
 

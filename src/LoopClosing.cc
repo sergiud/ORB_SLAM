@@ -28,7 +28,9 @@
 
 #include "ORBmatcher.h"
 
+#ifdef HAVE_ROS
 #include <ros/ros.h>
+#endif // HAVE_ROS
 
 #include "Thirdparty/g2o/g2o/types/sim3/types_seven_dof_expmap.h"
 
@@ -56,6 +58,7 @@ void LoopClosing::SetLocalMapper(LocalMapping *pLocalMapper)
 void LoopClosing::Run()
 {
 
+#ifdef HAVE_ROS
     ros::Rate r(200);
 
     while(ros::ok())
@@ -78,6 +81,36 @@ void LoopClosing::Run()
         ResetIfRequested();
         r.sleep();
     }
+#else
+    try {
+        while(1)
+        {
+            // Check if there are keyframes in the queue
+            if(CheckNewKeyFrames())
+            {
+                // Detect loop candidates and check covisibility consistency
+                if(DetectLoop())
+                {
+                   // Compute similarity transformation [sR|t]
+                   if(ComputeSim3())
+                   {
+                       // Perform loop fusion and pose graph optimization
+                       CorrectLoop();
+                   }
+                }
+            }
+
+            ResetIfRequested();
+
+            {
+                boost::unique_lock<boost::mutex> lock(processMutex);
+                processNext.wait_for(lock, boost::chrono::milliseconds(1000 / 200));
+            }
+        }
+    }
+    catch (boost::thread_interrupted&) {
+    }
+#endif // HAVE_ROS
 }
 
 void LoopClosing::InsertKeyFrame(KeyFrame *pKF)
@@ -401,11 +434,13 @@ void LoopClosing::CorrectLoop()
     mpLocalMapper->RequestStop();
 
     // Wait until Local Mapping has effectively stopped
+#ifdef HAVE_ROS
     ros::Rate r(1e4);
     while(ros::ok() && !mpLocalMapper->isStopped())
     {
         r.sleep();
     }
+#endif // HAVE_ROS
 
     // Ensure current keyframe is updated
     mpCurrentKF->UpdateConnections();
@@ -426,7 +461,7 @@ void LoopClosing::CorrectLoop()
         cv::Mat Tiw = pKFi->GetPose();
 
         if(pKFi!=mpCurrentKF)
-        {            
+        {
             cv::Mat Tic = Tiw*Twc;
             cv::Mat Ric = Tic.rowRange(0,3).colRange(0,3);
             cv::Mat tic = Tic.rowRange(0,3).col(3);
@@ -488,7 +523,7 @@ void LoopClosing::CorrectLoop()
 
         // Make sure connections are updated
         pKFi->UpdateConnections();
-    }    
+    }
 
     // Start Loop Fusion
     // Update matched map points and replace if duplicated
@@ -544,7 +579,7 @@ void LoopClosing::CorrectLoop()
     mpMatchedKF->AddLoopEdge(mpCurrentKF);
     mpCurrentKF->AddLoopEdge(mpMatchedKF);
 
-    ROS_INFO("Loop Closed!");
+    std::cout << "Loop Closed!" << std::endl;
 
     // Loop closed. Release Local Mapping.
     mpLocalMapper->Release();
@@ -577,6 +612,7 @@ void LoopClosing::RequestReset()
         mbResetRequested = true;
     }
 
+#ifdef HAVE_ROS
     ros::Rate r(500);
     while(ros::ok())
     {
@@ -587,6 +623,7 @@ void LoopClosing::RequestReset()
         }
         r.sleep();
     }
+#endif // HAVE_ROS
 }
 
 void LoopClosing::ResetIfRequested()

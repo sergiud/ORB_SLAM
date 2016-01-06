@@ -26,11 +26,13 @@
 #include "Map.h"
 #include "ORBVocabulary.h"
 #include "Tracking.h"
-#include <boost/thread.hpp>
+
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/condition_variable.hpp>
 
 #include "KeyFrameDatabase.h"
 
-#include "Thirdparty/g2o/g2o/types/sim3/types_seven_dof_expmap.h"
+#include <g2o/types/sim3/types_seven_dof_expmap.h>
 
 namespace ORB_SLAM
 {
@@ -44,7 +46,7 @@ class LoopClosing
 {
 public:
 
-    typedef pair<set<KeyFrame*>,int> ConsistentGroup;    
+    typedef pair<set<KeyFrame*>,int> ConsistentGroup;
     typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
         Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
 
@@ -89,6 +91,9 @@ protected:
     std::list<KeyFrame*> mlpLoopKeyFrameQueue;
 
     boost::mutex mMutexLoopQueue;
+
+    boost::condition_variable processNext;
+    boost::mutex processMutex;
 
     std::vector<float> mvfLevelSigmaSquare;
 
