@@ -75,7 +75,6 @@ add_library (ORB_SLAM
   ${ORB_SLAM_HDRS}
   ../src/Converter.cc
   ../src/EdgeSE3ProjectXYZ.cc
-  ../src/EdgeSim3ProjectXYZ.cc
   ../src/Frame.cc
   ../src/FramePublisher.cc
   ../src/Initializer.cc
