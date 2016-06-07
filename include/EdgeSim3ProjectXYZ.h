@@ -13,9 +13,8 @@ namespace g2o {
   {
   public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        VertexSim3ExpmapTwoCameras();
-    virtual bool read(std::istream& is);
-    virtual bool write(std::ostream& os) const;
+    virtual bool read(std::istream& is) { return false; }
+    virtual bool write(std::ostream& os) const { return false; }
 
     virtual void setToOriginImpl() {
       _estimate = Sim3();
@@ -61,9 +60,8 @@ namespace g2o {
   {
   public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    EdgeSim3TwoCameras() { }
-    virtual bool read(std::istream& is);
-    virtual bool write(std::ostream& os) const;
+    virtual bool read(std::istream& is) { return false; }
+    virtual bool write(std::ostream& os) const { return false; }
     void computeError()
     {
       const VertexSim3ExpmapTwoCameras* v1 = static_cast<const VertexSim3ExpmapTwoCameras*>(_vertices[0]);
@@ -91,9 +89,8 @@ class ORB_SLAM_EXPORT EdgeInverseSim3ProjectXYZ : public  BaseBinaryEdge<2, Eige
 {
   public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    EdgeInverseSim3ProjectXYZ();
-    virtual bool read(std::istream& is);
-    virtual bool write(std::ostream& os) const;
+    virtual bool read(std::istream& is) { return false; }
+    virtual bool write(std::ostream& os) const { return false; }
 
     void computeError()
     {
