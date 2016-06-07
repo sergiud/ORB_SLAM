@@ -94,8 +94,6 @@ add_library (ORB_SLAM
   ../src/Tracking.cc
 )
 
-set_target_properties (ORB_SLAM PROPERTIES CXX_STANDARD 11)
-set_target_properties (ORB_SLAM PROPERTIES CXX_STANDARD_REQUIRED ON)
 set_target_properties (ORB_SLAM PROPERTIES SOVERSION ${MAJOR_VERSION})
 set_target_properties (ORB_SLAM PROPERTIES VERSION ${VERSION})
 
@@ -126,9 +124,6 @@ endif (MSVC)
 add_executable (run_ORB_SLAM
   ../src/run_ORB_SLAM.cc
 )
-
-set_target_properties (run_ORB_SLAM PROPERTIES CXX_STANDARD 11)
-set_target_properties (run_ORB_SLAM PROPERTIES CXX_STANDARD_REQUIRED ON)
 
 target_link_libraries (run_ORB_SLAM PRIVATE ORB_SLAM)
 
