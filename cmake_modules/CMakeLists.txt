@@ -35,6 +35,11 @@ find_package (PkgConfig)
 add_definitions (-DBOOST_ALL_NO_LIB)
 add_definitions (-DBOOST_FILESYSTEM_NO_DEPRECATED)
 
+if (MSVC)
+  add_definitions (-D_CRT_SECURE_NO_WARNINGS)
+  add_definitions (-D_SCL_SECURE_NO_WARNINGS)
+endif (MSVC)
+
 set (CMAKE_DEBUG_POSTFIX _debug)
 
 if (NOT Boost_USE_STATIC_LIBS OR NOT DEFINED Boost_USE_STATIC_LIBS)
