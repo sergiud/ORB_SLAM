@@ -22,18 +22,26 @@ endif (NOT VERSION_PATCH EQUAL 0)
 
 set (VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${VERSION_PATCH}")
 
+include (CheckCXXCompilerFlag)
 include (CMakePackageConfigHelpers)
 include (GenerateExportHeader)
 
 find_package (Boost 1.55 REQUIRED atomic chrono date_time filesystem log
   program_options thread system)
-find_package (g2o 0.1 REQUIRED)
+find_package (g2o 2017.7.30 REQUIRED)
 find_package (OpenCV 3.0 REQUIRED core calib3d imgproc highgui features2d)
 find_package (TBB)
 find_package (PkgConfig)
 
 add_definitions (-DBOOST_ALL_NO_LIB)
 add_definitions (-DBOOST_FILESYSTEM_NO_DEPRECATED)
+
+# Visual C++ compiler flags
+check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
+
+if (HAVE_BIGOBJ)
+  add_compile_options (/bigobj)
+endif (HAVE_BIGOBJ)
 
 if (MSVC)
   add_definitions (-D_CRT_SECURE_NO_WARNINGS)
@@ -56,8 +64,6 @@ endif (PKGCONFIG_FOUND)
 
 set (ORB_SLAM_HDRS
   ../include/Converter.h
-  ../include/EdgeSE3ProjectXYZ.h
-  ../include/EdgeSim3ProjectXYZ.h
   ../include/Frame.h
   ../include/FramePublisher.h
   ../include/Initializer.h
@@ -81,7 +87,6 @@ set (ORB_SLAM_HDRS
 add_library (ORB_SLAM
   ${ORB_SLAM_HDRS}
   ../src/Converter.cc
-  ../src/EdgeSE3ProjectXYZ.cc
   ../src/Frame.cc
   ../src/FramePublisher.cc
   ../src/Initializer.cc
