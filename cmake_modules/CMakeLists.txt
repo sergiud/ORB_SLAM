@@ -33,6 +33,29 @@ find_package (OpenCV 3.0 REQUIRED core calib3d imgproc highgui features2d)
 find_package (TBB)
 find_package (PkgConfig)
 
+if (TBB_FOUND)
+  set (TBB_DEPENDENCY "find_dependency (TBB ${TBB_VERSION})")
+
+  # Create a proxy library called 'tbb' for OpenCV to link to. This is
+  # especially needed under Windows if OpenCV was compiled with TBB support
+  # enabled.
+  if (NOT TARGET tbb)
+    add_library (tbb UNKNOWN IMPORTED)
+
+    if (TBB_LIBRARY_DEBUG)
+      set_property (TARGET tbb APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
+      set_target_properties (tbb PROPERTIES IMPORTED_LOCATION_DEBUG
+        ${TBB_LIBRARY_DEBUG})
+    endif (TBB_LIBRARY_DEBUG)
+
+    if (TBB_LIBRARY_RELEASE)
+      set_property (TARGET tbb APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+      set_target_properties (tbb PROPERTIES IMPORTED_LOCATION_RELEASE
+        ${TBB_LIBRARY_RELEASE})
+    endif (TBB_LIBRARY_RELEASE)
+  endif (NOT TARGET tbb)
+endif (TBB_FOUND)
+
 add_definitions (-DBOOST_ALL_NO_LIB)
 add_definitions (-DBOOST_FILESYSTEM_NO_DEPRECATED)
 
@@ -129,10 +152,6 @@ target_include_directories (ORB_SLAM SYSTEM PUBLIC ${Boost_INCLUDE_DIRS}
 target_link_libraries (ORB_SLAM PUBLIC ${Boost_LIBRARIES} g2o::solver_cholmod
   g2o::core g2o::types_sba g2o::types_slam3d g2o::types_sim3 ${OpenCV_LIBS}
   DBoW2 DUtils)
-
-if (TBB_FOUND)
-  target_link_libraries (ORB_SLAM PUBLIC ${TBB_LIBRARIES})
-endif (TBB_FOUND)
 
 if (MSVC)
   set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _SCL_SECURE_NO_WARNINGS)
