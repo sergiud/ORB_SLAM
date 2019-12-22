@@ -3,6 +3,7 @@
 include (CMakeFindDependencyMacro)
 
 @g2o_DEPENDENCY@
+find_dependency (OpenCV @OpenCV_VERSION@)
 find_dependency (DBoW2 1.0)
 find_dependency (DUtils 1.0)
 

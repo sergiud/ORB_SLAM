@@ -2,7 +2,7 @@
  * This file is part of ORB-SLAM.
  *
  * Copyright (C) 2014 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
- * Copyright (C) 2015 Sergiu Dotenco <sergiu dot dotenco at fau dot de> (University of Erlangen-Nürnberg)
+ * Copyright (C) 2015, 2019 Sergiu Deitsch <sergiu dot deitsch at fau dot de> (University of Erlangen-Nürnberg)
  * For more information see <http://webdiis.unizar.es/~raulmur/orbslam/>
  *
  * ORB-SLAM is free software: you can redistribute it and/or modify
@@ -185,7 +185,7 @@ int main(int argc, char **argv)
     }
 
     // Initialize the tracking thread and launch
-    ORB_SLAM::Tracking tracker(&vocabulary, &FramePub, &MapPub, &world, cv::Mat1f(K), cv::Mat1f(distCoeffs), capture.get(CV_CAP_PROP_FPS),
+    ORB_SLAM::Tracking tracker(&vocabulary, &FramePub, &MapPub, &world, cv::Mat1f(K), cv::Mat1f(distCoeffs), capture.get(cv::CAP_PROP_FPS),
             features, scale, levels, fastTh, score, vars.count("no-motion-model") == 0);
 
     tracker.SetKeyFrameDatabase(&database);
@@ -225,7 +225,7 @@ int main(int argc, char **argv)
             tracker.CheckResetByPublishers();
 
             cv::Mat tmp;
-            cv::cvtColor(image, tmp, CV_BGR2GRAY);
+            cv::cvtColor(image, tmp, cv::COLOR_BGR2GRAY);
             tracker.Track(tmp);
 
             if (!noVideo) {

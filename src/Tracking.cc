@@ -373,7 +373,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         if(mbRGB)
             cvtColor(cv_ptr->image, im, CV_RGB2GRAY);
         else
-            cvtColor(cv_ptr->image, im, CV_BGR2GRAY);
+            cvtColor(cv_ptr->image, im, cv::COLOR_BGR2GRAY);
     }
     else if(cv_ptr->image.channels()==1)
     {

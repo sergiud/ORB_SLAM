@@ -54,7 +54,7 @@
 
 #include <vector>
 #include <cmath>
-#include <opencv/cv.h>
+#include <opencv2/core/core_c.h>
 #include "Thirdparty/DBoW2/DUtils/Random.h"
 #ifdef HAVE_ROS
 #include <ros/ros.h>

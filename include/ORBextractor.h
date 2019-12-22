@@ -23,7 +23,7 @@
 
 #include <vector>
 #include <list>
-#include <opencv/cv.h>
+#include <opencv2/core/core_c.h>
 
 #include "ORB_SLAM_export.h"
 
@@ -33,7 +33,7 @@ namespace ORB_SLAM
 class ORB_SLAM_EXPORT ORBextractor
 {
 public:
-    
+
     enum {HARRIS_SCORE=0, FAST_SCORE=1 };
 
     ORBextractor(int nfeatures = 1000, float scaleFactor = 1.2f, int nlevels = 8, int scoreType=FAST_SCORE, int fastTh = 20);

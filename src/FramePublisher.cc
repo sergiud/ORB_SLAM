@@ -100,7 +100,7 @@ cv::Mat FramePublisher::DrawFrame()
     } // destroy scoped mutex -> release
 
     if(im.channels()<3)
-        cvtColor(im,im,CV_GRAY2BGR);
+        cvtColor(im,im,cv::COLOR_GRAY2BGR);
 
     //Draw
     if(state==Tracking::INITIALIZING) //INITIALIZING
