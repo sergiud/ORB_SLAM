@@ -27,7 +27,7 @@ include (CMakePackageConfigHelpers)
 include (GenerateExportHeader)
 
 find_package (Boost 1.55 REQUIRED atomic chrono date_time filesystem log
-  program_options thread system)
+  program_options random thread system)
 find_package (g2o 2017.7.30 REQUIRED core types_sba solver_cholmod types_slam3d
   types_sim3)
 find_package (OpenCV 4.0 REQUIRED core calib3d imgproc highgui features2d)
@@ -75,9 +75,9 @@ endif (MSVC)
 set (CMAKE_DEBUG_POSTFIX _debug)
 set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-if (NOT Boost_USE_STATIC_LIBS OR NOT DEFINED Boost_USE_STATIC_LIBS)
-  add_definitions (-DBOOST_ALL_DYN_LINK)
-endif (NOT Boost_USE_STATIC_LIBS OR NOT DEFINED Boost_USE_STATIC_LIBS)
+if (NOT DEFINED Boost_USE_STATIC_LIBS OR NOT Boost_USE_STATIC_LIBS)
+  #add_definitions (-DBOOST_ALL_DYN_LINK)
+endif (NOT DEFINED Boost_USE_STATIC_LIBS OR NOT Boost_USE_STATIC_LIBS)
 
 if (PKGCONFIG_FOUND)
   pkg_check_modules (EIGEN3 REQUIRED eigen3>=3.2)
@@ -148,9 +148,9 @@ target_include_directories (ORB_SLAM PUBLIC
 add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/DBoW2
   ${CMAKE_CURRENT_BINARY_DIR}/DBoW2)
 
-target_include_directories (ORB_SLAM SYSTEM PUBLIC ${Boost_INCLUDE_DIRS}
+target_include_directories (ORB_SLAM SYSTEM PUBLIC
   ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
-target_link_libraries (ORB_SLAM PUBLIC ${Boost_LIBRARIES} g2o::solver_cholmod
+target_link_libraries (ORB_SLAM PUBLIC Boost::thread g2o::solver_cholmod
   g2o::core g2o::types_sba g2o::types_slam3d g2o::types_sim3 ${OpenCV_LIBS}
   DBoW2 DUtils)
 
@@ -162,7 +162,7 @@ add_executable (run_ORB_SLAM
   ../src/run_ORB_SLAM.cc
 )
 
-target_link_libraries (run_ORB_SLAM PRIVATE ORB_SLAM)
+target_link_libraries (run_ORB_SLAM PRIVATE ORB_SLAM Boost::log Boost::program_options Boost::thread)
 
 generate_export_header (ORB_SLAM EXPORT_FILE_NAME
     ${CMAKE_CURRENT_BINARY_DIR}/ORB_SLAM_export.h)
