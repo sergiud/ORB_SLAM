@@ -150,9 +150,9 @@ add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/DBoW2
 
 target_include_directories (ORB_SLAM SYSTEM PUBLIC
   ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
-target_link_libraries (ORB_SLAM PUBLIC Boost::thread g2o::solver_cholmod
-  g2o::core g2o::types_sba g2o::types_slam3d g2o::types_sim3 ${OpenCV_LIBS}
-  DBoW2 DUtils)
+target_link_libraries (ORB_SLAM PUBLIC Boost::log Boost::thread
+  g2o::solver_cholmod g2o::core g2o::types_sba g2o::types_slam3d g2o::types_sim3
+  ${OpenCV_LIBS} DBoW2 DUtils)
 
 if (MSVC)
   set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _SCL_SECURE_NO_WARNINGS)
@@ -162,7 +162,7 @@ add_executable (run_ORB_SLAM
   ../src/run_ORB_SLAM.cc
 )
 
-target_link_libraries (run_ORB_SLAM PRIVATE ORB_SLAM Boost::log Boost::program_options Boost::thread)
+target_link_libraries (run_ORB_SLAM PRIVATE ORB_SLAM Boost::program_options Boost::thread)
 
 generate_export_header (ORB_SLAM EXPORT_FILE_NAME
     ${CMAKE_CURRENT_BINARY_DIR}/ORB_SLAM_export.h)
