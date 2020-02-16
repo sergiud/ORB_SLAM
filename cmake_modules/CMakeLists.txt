@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.9)
 
 if (POLICY CMP0063)
   cmake_policy (SET CMP0063 NEW)
@@ -150,7 +150,7 @@ add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/DBoW2
 
 target_include_directories (ORB_SLAM SYSTEM PUBLIC
   ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
-target_link_libraries (ORB_SLAM PUBLIC Boost::log Boost::thread
+target_link_libraries (ORB_SLAM PUBLIC Boost::log Boost::random Boost::thread
   g2o::solver_cholmod g2o::core g2o::types_sba g2o::types_slam3d g2o::types_sim3
   ${OpenCV_LIBS} DBoW2 DUtils)
 
