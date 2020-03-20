@@ -32,7 +32,7 @@ find_package (g2o 2017.7.30 REQUIRED core types_sba solver_cholmod types_slam3d
   types_sim3)
 find_package (OpenCV 4.0 REQUIRED core calib3d imgproc highgui features2d)
 find_package (TBB)
-find_package (PkgConfig)
+find_package (Eigen3 3.2.10 REQUIRED NO_MODULE)
 
 if (TBB_FOUND)
   set (TBB_DEPENDENCY "find_dependency (TBB ${TBB_VERSION})")
@@ -78,13 +78,6 @@ set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 if (NOT DEFINED Boost_USE_STATIC_LIBS OR NOT Boost_USE_STATIC_LIBS)
   #add_definitions (-DBOOST_ALL_DYN_LINK)
 endif (NOT DEFINED Boost_USE_STATIC_LIBS OR NOT Boost_USE_STATIC_LIBS)
-
-if (PKGCONFIG_FOUND)
-  pkg_check_modules (EIGEN3 REQUIRED eigen3>=3.2)
-else (PKGCONFIG_FOUND)
-  find_package (Eigen3 3.2 REQUIRED)
-  set (EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
-endif (PKGCONFIG_FOUND)
 
 set (ORB_SLAM_HDRS
   ../include/Converter.h
@@ -148,11 +141,10 @@ target_include_directories (ORB_SLAM PUBLIC
 add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/DBoW2
   ${CMAKE_CURRENT_BINARY_DIR}/DBoW2)
 
-target_include_directories (ORB_SLAM SYSTEM PUBLIC
-  ${EIGEN3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 target_link_libraries (ORB_SLAM PUBLIC Boost::log Boost::random Boost::thread
   g2o::solver_cholmod g2o::core g2o::types_sba g2o::types_slam3d g2o::types_sim3
-  ${OpenCV_LIBS} DBoW2 DUtils)
+  opencv_core opencv_imgproc opencv_calib3d opencv_features2d DBoW2 DUtils
+  Eigen3::Eigen)
 
 if (MSVC)
   set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _SCL_SECURE_NO_WARNINGS)
@@ -162,7 +154,8 @@ add_executable (run_ORB_SLAM
   ../src/run_ORB_SLAM.cc
 )
 
-target_link_libraries (run_ORB_SLAM PRIVATE ORB_SLAM Boost::program_options Boost::thread)
+target_link_libraries (run_ORB_SLAM PRIVATE ORB_SLAM Boost::program_options
+  Boost::thread opencv_highgui)
 
 generate_export_header (ORB_SLAM EXPORT_FILE_NAME
     ${CMAKE_CURRENT_BINARY_DIR}/ORB_SLAM_export.h)

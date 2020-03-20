@@ -17,15 +17,13 @@ set (SRCS_DBOW2
 
 add_library (DBoW2 ${HDRS_DBOW2} ${SRCS_DBOW2})
 
-target_include_directories (DBoW2 PUBLIC ${OpenCV_INCLUDE_DIRS})
-
 target_include_directories (DBoW2 PUBLIC
   $<INSTALL_INTERFACE:include/DBoW2>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
 
-target_link_libraries (DBoW2 PUBLIC ${OpenCV_LIBS} Boost::random DUtils)
+target_link_libraries (DBoW2 PUBLIC opencv_core Boost::random DUtils)
 
 set_target_properties (DBoW2 PROPERTIES SOVERSION ${MAJOR_VERSION})
 set_target_properties (DBoW2 PROPERTIES VERSION ${VERSION})

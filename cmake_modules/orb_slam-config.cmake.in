@@ -3,6 +3,7 @@
 include (CMakeFindDependencyMacro)
 
 find_dependency (Boost @Boost_VERSION@ COMPONENTS log random thread)
+find_dependency (Eigen3 @Eigen3_VERSION@)
 @g2o_DEPENDENCY@
 find_dependency (OpenCV @OpenCV_VERSION@ COMPONENTS core calib3d imgproc features2d)
 find_dependency (DBoW2 1.0)
