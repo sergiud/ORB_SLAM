@@ -31,31 +31,7 @@ find_package (Boost 1.55 REQUIRED atomic chrono date_time filesystem log
 find_package (g2o 2017.7.30 REQUIRED core types_sba solver_cholmod types_slam3d
   types_sim3)
 find_package (OpenCV 4.0 REQUIRED core calib3d imgproc highgui features2d)
-find_package (TBB)
 find_package (Eigen3 3.2.10 REQUIRED NO_MODULE)
-
-if (TBB_FOUND)
-  set (TBB_DEPENDENCY "find_dependency (TBB ${TBB_VERSION})")
-
-  # Create a proxy library called 'tbb' for OpenCV to link to. This is
-  # especially needed under Windows if OpenCV was compiled with TBB support
-  # enabled.
-  if (NOT TARGET tbb)
-    add_library (tbb UNKNOWN IMPORTED)
-
-    if (TBB_LIBRARY_DEBUG)
-      set_property (TARGET tbb APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
-      set_target_properties (tbb PROPERTIES IMPORTED_LOCATION_DEBUG
-        ${TBB_LIBRARY_DEBUG})
-    endif (TBB_LIBRARY_DEBUG)
-
-    if (TBB_LIBRARY_RELEASE)
-      set_property (TARGET tbb APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
-      set_target_properties (tbb PROPERTIES IMPORTED_LOCATION_RELEASE
-        ${TBB_LIBRARY_RELEASE})
-    endif (TBB_LIBRARY_RELEASE)
-  endif (NOT TARGET tbb)
-endif (TBB_FOUND)
 
 add_definitions (-DBOOST_ALL_NO_LIB)
 add_definitions (-DBOOST_FILESYSTEM_NO_DEPRECATED)
