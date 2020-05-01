@@ -51,10 +51,6 @@ endif (MSVC)
 set (CMAKE_DEBUG_POSTFIX _debug)
 set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-if (NOT DEFINED Boost_USE_STATIC_LIBS OR NOT Boost_USE_STATIC_LIBS)
-  #add_definitions (-DBOOST_ALL_DYN_LINK)
-endif (NOT DEFINED Boost_USE_STATIC_LIBS OR NOT Boost_USE_STATIC_LIBS)
-
 set (ORB_SLAM_HDRS
   ../include/Converter.h
   ../include/Frame.h
