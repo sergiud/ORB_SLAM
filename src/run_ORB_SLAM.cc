@@ -34,7 +34,7 @@
 #include "ORBVocabulary.h"
 #include "Tracking.h"
 
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/format.hpp>

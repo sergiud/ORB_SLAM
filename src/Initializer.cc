@@ -24,7 +24,7 @@
 #include "ORBmatcher.h"
 
 #include <boost/random/uniform_int_distribution.hpp>
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/thread/thread.hpp>
 
 namespace ORB_SLAM
