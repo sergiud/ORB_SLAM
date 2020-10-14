@@ -26,7 +26,7 @@ include (CheckCXXCompilerFlag)
 include (CMakePackageConfigHelpers)
 include (GenerateExportHeader)
 
-find_package (Boost 1.55 REQUIRED atomic chrono date_time filesystem log
+find_package (Boost 1.72 NO_MODULE REQUIRED COMPONENTS atomic chrono date_time filesystem log
   program_options random thread system)
 find_package (g2o 2017.7.30 REQUIRED core types_sba solver_cholmod types_slam3d
   types_sim3)
