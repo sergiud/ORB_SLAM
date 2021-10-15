@@ -113,10 +113,26 @@ target_include_directories (ORB_SLAM PUBLIC
 add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/DBoW2
   ${CMAKE_CURRENT_BINARY_DIR}/DBoW2)
 
-target_link_libraries (ORB_SLAM PUBLIC Boost::log Boost::random Boost::thread
-  g2o::solver_cholmod g2o::core g2o::types_sba g2o::types_slam3d g2o::types_sim3
-  opencv_core opencv_imgproc opencv_calib3d opencv_features2d DBoW2 DUtils
-  Eigen3::Eigen)
+target_link_libraries (ORB_SLAM
+  PUBLIC
+  Boost::atomic
+  Boost::log
+  Boost::random
+  Boost::thread
+  DBoW2
+  Eigen3::Eigen
+  g2o::types_sba
+  g2o::types_sim3
+  opencv_core
+  opencv_features2d
+  PRIVATE
+  DUtils
+  g2o::core
+  g2o::solver_cholmod
+  g2o::types_slam3d
+  opencv_calib3d
+  opencv_imgproc
+)
 
 if (MSVC)
   set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _SCL_SECURE_NO_WARNINGS)
@@ -126,8 +142,12 @@ add_executable (run_ORB_SLAM
   ../src/run_ORB_SLAM.cc
 )
 
-target_link_libraries (run_ORB_SLAM PRIVATE ORB_SLAM Boost::program_options
-  Boost::thread opencv_highgui)
+target_link_libraries (run_ORB_SLAM PRIVATE
+  Boost::program_options
+  Boost::thread
+  opencv_highgui
+  ORB_SLAM
+)
 
 generate_export_header (ORB_SLAM EXPORT_FILE_NAME
     ${CMAKE_CURRENT_BINARY_DIR}/ORB_SLAM_export.h)
