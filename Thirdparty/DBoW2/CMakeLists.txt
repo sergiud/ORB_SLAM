@@ -1,9 +1,5 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.5)
 project (DBoW2)
-
-if (POLICY CMP0063)
-  cmake_policy (SET CMP0063 NEW)
-endif (POLICY CMP0063)
 
 set (MAJOR_VERSION 1)
 set (MINOR_VERSION 0)
