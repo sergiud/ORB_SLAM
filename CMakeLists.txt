@@ -16,8 +16,8 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
-find_package(OpenCV REQUIRED)
-find_package(Eigen3 REQUIRED)
+find_package (OpenCV 4.0 REQUIRED NO_MODULE)
+find_package (Eigen3 3.4.1...5 REQUIRED NO_MODULE)
 
 include_directories(
 ${PROJECT_SOURCE_DIR}

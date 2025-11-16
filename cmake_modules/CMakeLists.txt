@@ -33,11 +33,8 @@ find_package (Boost 1.72 NO_MODULE REQUIRED COMPONENTS
 )
 find_package (g2o 2017.7.30 REQUIRED core types_sba solver_cholmod types_slam3d
   types_sim3)
-find_package (OpenCV 4.0 REQUIRED core calib3d imgproc highgui features2d)
-find_package (Eigen3 3.2.10 REQUIRED NO_MODULE)
-
-add_definitions (-DBOOST_ALL_NO_LIB)
-add_definitions (-DBOOST_FILESYSTEM_NO_DEPRECATED)
+find_package (OpenCV 4.0 NO_MODULE REQUIRED core calib3d imgproc highgui features2d)
+find_package (Eigen3 3.4.1...5 REQUIRED NO_MODULE)
 
 # Visual C++ compiler flags
 check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
