@@ -21,7 +21,7 @@
 #ifndef MAPPOINT_H
 #define MAPPOINT_H
 
-#include<opencv2/core/core.hpp>
+#include<opencv2/core.hpp>
 #include"KeyFrame.h"
 #include"Map.h"
 #include "ORB_SLAM_export.h"

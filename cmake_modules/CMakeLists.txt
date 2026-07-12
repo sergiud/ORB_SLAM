@@ -33,7 +33,7 @@ find_package (Boost 1.72 NO_MODULE REQUIRED COMPONENTS
 )
 find_package (g2o 2017.7.30 REQUIRED core types_sba solver_cholmod types_slam3d
   types_sim3)
-find_package (OpenCV 4.0 NO_MODULE REQUIRED core calib3d imgproc highgui features2d)
+find_package (OpenCV 5.0 NO_MODULE REQUIRED core calib imgproc highgui features)
 find_package (Eigen3 3.4.1...5 REQUIRED NO_MODULE)
 
 # Visual C++ compiler flags
@@ -124,13 +124,13 @@ target_link_libraries (ORB_SLAM
   g2o::types_sba
   g2o::types_sim3
   opencv_core
-  opencv_features2d
+  opencv_features
   PRIVATE
   DUtils
   g2o::core
   g2o::solver_cholmod
   g2o::types_slam3d
-  opencv_calib3d
+  opencv_calib
   opencv_imgproc
 )
 

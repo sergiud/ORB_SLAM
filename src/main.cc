@@ -24,7 +24,7 @@
 #include<ros/package.h>
 #include<boost/thread.hpp>
 
-#include<opencv2/core/core.hpp>
+#include<opencv2/core.hpp>
 
 #include "Tracking.h"
 #include "FramePublisher.h"

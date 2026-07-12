@@ -23,7 +23,7 @@
 
 #include <vector>
 #include <list>
-#include <opencv2/core/core_c.h>
+#include <opencv2/core.hpp>
 
 #include "ORB_SLAM_export.h"
 

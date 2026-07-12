@@ -352,9 +352,9 @@ void LocalMapping::CreateNewMapPoints()
             const cv::KeyPoint &kp2 = vMatchedKeysUn2[ikp];
 
             // Check parallax between rays
-            cv::Mat xn1 = (cv::Mat_<float>(3,1) << (kp1.pt.x-cx1)*invfx1, (kp1.pt.y-cy1)*invfy1, 1.0 );
+            cv::Mat xn1 = cv::Mat_<float>({3,1}, {(kp1.pt.x-cx1)*invfx1, (kp1.pt.y-cy1)*invfy1, 1.0f});
             cv::Mat ray1 = Rwc1*xn1;
-            cv::Mat xn2 = (cv::Mat_<float>(3,1) << (kp2.pt.x-cx2)*invfx2, (kp2.pt.y-cy2)*invfy2, 1.0 );
+            cv::Mat xn2 = cv::Mat_<float>({3,1}, {(kp2.pt.x-cx2)*invfx2, (kp2.pt.y-cy2)*invfy2, 1.0f});
             cv::Mat ray2 = Rwc2*xn2;
             const float cosParallaxRays = ray1.dot(ray2)/(cv::norm(ray1)*cv::norm(ray2));
 
@@ -657,9 +657,9 @@ void LocalMapping::KeyFrameCulling()
 
 cv::Mat LocalMapping::SkewSymmetricMatrix(const cv::Mat &v)
 {
-    return (cv::Mat_<float>(3,3) <<             0, -v.at<float>(2), v.at<float>(1),
-                                  v.at<float>(2),               0,-v.at<float>(0),
-                                 -v.at<float>(1),  v.at<float>(0),              0);
+    return cv::Mat_<float>({3,3}, {            0, -v.at<float>(2), v.at<float>(1),
+                              v.at<float>(2),               0,-v.at<float>(0),
+                             -v.at<float>(1),  v.at<float>(0),              0});
 }
 
 void LocalMapping::RequestReset()

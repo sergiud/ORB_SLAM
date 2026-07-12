@@ -190,11 +190,11 @@ void MapPublisher::PublishKeyFrames(const vector<KeyFrame*> &vpKFs)
     float d = fCameraSize;
 
     //Camera is a pyramid. Define in camera coordinate system
-    cv::Mat o = (cv::Mat_<float>(4,1) << 0, 0, 0, 1);
-    cv::Mat p1 = (cv::Mat_<float>(4,1) << d, d*0.8, d*0.5, 1);
-    cv::Mat p2 = (cv::Mat_<float>(4,1) << d, -d*0.8, d*0.5, 1);
-    cv::Mat p3 = (cv::Mat_<float>(4,1) << -d, -d*0.8, d*0.5, 1);
-    cv::Mat p4 = (cv::Mat_<float>(4,1) << -d, d*0.8, d*0.5, 1);
+    cv::Mat o = cv::Mat_<float>({4,1}, {0, 0, 0, 1});
+    cv::Mat p1 = cv::Mat_<float>({4,1}, {d, d*0.8f, d*0.5f, 1});
+    cv::Mat p2 = cv::Mat_<float>({4,1}, {d, -d*0.8f, d*0.5f, 1});
+    cv::Mat p3 = cv::Mat_<float>({4,1}, {-d, -d*0.8f, d*0.5f, 1});
+    cv::Mat p4 = cv::Mat_<float>({4,1}, {-d, d*0.8f, d*0.5f, 1});
 
     for(size_t i=0, iend=vpKFs.size() ;i<iend; i++)
     {
@@ -304,11 +304,11 @@ void MapPublisher::PublishCurrentCamera(const cv::Mat &Tcw)
     float d = fCameraSize;
 
     //Camera is a pyramid. Define in camera coordinate system
-    cv::Mat o = (cv::Mat_<float>(4,1) << 0, 0, 0, 1);
-    cv::Mat p1 = (cv::Mat_<float>(4,1) << d, d*0.8, d*0.5, 1);
-    cv::Mat p2 = (cv::Mat_<float>(4,1) << d, -d*0.8, d*0.5, 1);
-    cv::Mat p3 = (cv::Mat_<float>(4,1) << -d, -d*0.8, d*0.5, 1);
-    cv::Mat p4 = (cv::Mat_<float>(4,1) << -d, d*0.8, d*0.5, 1);
+    cv::Mat o = cv::Mat_<float>({4,1}, {0, 0, 0, 1});
+    cv::Mat p1 = cv::Mat_<float>({4,1}, {d, d*0.8f, d*0.5f, 1});
+    cv::Mat p2 = cv::Mat_<float>({4,1}, {d, -d*0.8f, d*0.5f, 1});
+    cv::Mat p3 = cv::Mat_<float>({4,1}, {-d, -d*0.8f, d*0.5f, 1});
+    cv::Mat p4 = cv::Mat_<float>({4,1}, {-d, d*0.8f, d*0.5f, 1});
 
     cv::Mat Twc = Tcw.inv();
     cv::Mat ow = Twc*o;

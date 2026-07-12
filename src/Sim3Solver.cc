@@ -22,7 +22,7 @@
 
 #include <vector>
 #include <cmath>
-#include <opencv2/core/core_c.h>
+#include <opencv2/geometry.hpp>
 #ifdef HAVE_ROS
 #include <ros/ros.h>
 #endif // HAVE_ROS
@@ -217,7 +217,7 @@ cv::Mat Sim3Solver::find(vector<bool> &vbInliers12, int &nInliers)
 
 void Sim3Solver::centroid(cv::Mat &P, cv::Mat &Pr, cv::Mat &C)
 {
-    cv::reduce(P,C,1,CV_REDUCE_SUM);
+    cv::reduce(P,C,1,cv::REDUCE_SUM);
     C = C/P.cols;
 
     for(int i=0; i<P.cols; i++)
@@ -247,7 +247,7 @@ void Sim3Solver::computeT(cv::Mat &P1, cv::Mat &P2)
 
     // Step 3: Compute N matrix
 
-    double N11, N12, N13, N14, N22, N23, N24, N33, N34, N44;
+    float N11, N12, N13, N14, N22, N23, N24, N33, N34, N44;
 
     cv::Mat N(4,4,P1.type());
 
@@ -262,10 +262,10 @@ void Sim3Solver::computeT(cv::Mat &P1, cv::Mat &P2)
     N34 = M.at<float>(1,2)+M.at<float>(2,1);
     N44 = -M.at<float>(0,0)-M.at<float>(1,1)+M.at<float>(2,2);
 
-    N = (cv::Mat_<float>(4,4) << N11, N12, N13, N14,
-                                 N12, N22, N23, N24,
-                                 N13, N23, N33, N34,
-                                 N14, N24, N34, N44);
+    N = cv::Mat_<float>({4,4}, {N11, N12, N13, N14,
+                                N12, N22, N23, N24,
+                                N13, N23, N33, N34,
+                                N14, N24, N34, N44});
 
 
     // Step 4: Eigenvector of the highest eigenvalue
@@ -396,7 +396,7 @@ void Sim3Solver::Project(const vector<cv::Mat> &vP3Dw, vector<cv::Mat> &vP2D, cv
         float x = P3Dc.at<float>(0)*invz;
         float y = P3Dc.at<float>(1)*invz;
 
-        vP2D.push_back((cv::Mat_<float>(2,1) << fx*x+cx, fy*y+cy));
+        vP2D.push_back(cv::Mat_<float>({2,1}, {fx*x+cx, fy*y+cy}));
     }
 }
 
@@ -416,7 +416,7 @@ void Sim3Solver::FromCameraToImage(const vector<cv::Mat> &vP3Dc, vector<cv::Mat>
         float x = vP3Dc[i].at<float>(0)*invz;
         float y = vP3Dc[i].at<float>(1)*invz;
 
-        vP2D.push_back((cv::Mat_<float>(2,1) << fx*x+cx, fy*y+cy));
+        vP2D.push_back(cv::Mat_<float>({2,1}, {fx*x+cx, fy*y+cy}));
     }
 }
 

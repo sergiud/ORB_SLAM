@@ -2,6 +2,7 @@
 
 include (CMakeFindDependencyMacro)
 
+find_dependency (OpenCV @OpenCV_VERSION@ NO_MODULE COMPONENTS core)
 find_dependency (DUtils 1.0)
 
 include ("${CMAKE_CURRENT_LIST_DIR}/dbow2-targets.cmake")

@@ -21,7 +21,7 @@
 #ifndef CONVERTER_H
 #define CONVERTER_H
 
-#include<opencv2/core/core.hpp>
+#include<opencv2/core.hpp>
 
 #include<Eigen/Dense>
 #include <g2o/types/sba/types_six_dof_expmap.h>
