@@ -18,3 +18,7 @@ include (GenerateExportHeader)
 
 add_subdirectory (DUtils)
 add_subdirectory (DBoW2)
+
+if (BUILD_TESTING)
+  add_subdirectory (tests)
+endif (BUILD_TESTING)

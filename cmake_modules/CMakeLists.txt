@@ -17,6 +17,7 @@ endif (NOT VERSION_PATCH EQUAL 0)
 
 set (VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${VERSION_PATCH}")
 
+include (CTest)
 include (CheckCXXCompilerFlag)
 include (CMakePackageConfigHelpers)
 include (GenerateExportHeader)

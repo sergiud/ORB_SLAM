@@ -1339,11 +1339,7 @@ int TemplatedVocabulary<TDescriptor,F>::stopWords(double minWeight)
 template<class TDescriptor, class F>
 bool TemplatedVocabulary<TDescriptor,F>::loadFromTextFile(const std::string &filename)
 {
-    ifstream f;
-    f.open(filename.c_str());
-
-    if(f.eof())
-	return false;
+    ifstream f(filename.c_str());
 
     m_words.clear();
     m_nodes.clear();
@@ -1352,13 +1348,14 @@ bool TemplatedVocabulary<TDescriptor,F>::loadFromTextFile(const std::string &fil
     getline(f,s);
     stringstream ss;
     ss << s;
-    ss >> m_k;
-    ss >> m_L;
-    int n1, n2;
-    ss >> n1;
-    ss >> n2;
+    int n1 = 0;
+    int n2 = 0;
 
-    if(m_k<0 || m_k>20 || m_L<1 || m_L>10 || n1<0 || n1>5 || n2<0 || n2>3)
+    // A file that failed to open or a header that ends early leaves the
+    // values as they were, so a header that cannot be read is rejected
+    // before its values are checked.
+    if(!(ss >> m_k >> m_L >> n1 >> n2) ||
+       m_k<0 || m_k>20 || m_L<1 || m_L>10 || n1<0 || n1>5 || n2<0 || n2>3)
     {
         std::cerr << "Vocabulary loading failure: This is not a correct text file!" << endl;
 	return false;
@@ -1377,10 +1374,11 @@ bool TemplatedVocabulary<TDescriptor,F>::loadFromTextFile(const std::string &fil
 
     m_nodes.resize(1);
     m_nodes[0].id = 0;
-    while(!f.eof())
+    // Reading past the last line, which ends with a line break, yields no
+    // node.
+    string snode;
+    while(getline(f,snode))
     {
-        string snode;
-        getline(f,snode);
         stringstream ssnode;
         ssnode << snode;
 
