@@ -359,26 +359,26 @@ void MapPublisher::PublishCurrentCamera(const cv::Mat &Tcw)
 
 void MapPublisher::SetCurrentCameraPose(const cv::Mat &Tcw)
 {
-    boost::mutex::scoped_lock lock(mMutexCamera);
+    std::scoped_lock lock{mMutexCamera};
     mCameraPose = Tcw.clone();
     mbCameraUpdated = true;
 }
 
 cv::Mat MapPublisher::GetCurrentCameraPose()
 {
-    boost::mutex::scoped_lock lock(mMutexCamera);
+    std::scoped_lock lock{mMutexCamera};
     return mCameraPose.clone();
 }
 
 bool MapPublisher::isCamUpdated()
 {
-    boost::mutex::scoped_lock lock(mMutexCamera);
+    std::scoped_lock lock{mMutexCamera};
     return mbCameraUpdated;
 }
 
 void MapPublisher::ResetCamFlag()
 {
-    boost::mutex::scoped_lock lock(mMutexCamera);
+    std::scoped_lock lock{mMutexCamera};
     mbCameraUpdated = false;
 }
 

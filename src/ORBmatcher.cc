@@ -29,7 +29,7 @@
 #include<opencv2/core.hpp>
 
 #include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
-#include <boost/assert.hpp>
+#include <cassert>
 
 using namespace std;
 
@@ -236,7 +236,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
                             int bin = round(rot*factor);
                             if(bin==HISTO_LENGTH)
                                 bin=0;
-                            BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                            assert(bin>=0 && bin<HISTO_LENGTH);
                             rotHist[bin].push_back(bestIdxF);
                         }
                         nmatches++;
@@ -484,7 +484,7 @@ int ORBmatcher::WindowSearch(Frame &F1, Frame &F2, int windowSize, vector<MapPoi
             int bin = round(rot*factor);
             if(bin==HISTO_LENGTH)
                 bin=0;
-            BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+            assert(bin>=0 && bin<HISTO_LENGTH);
             rotHist[bin].push_back(bestIdx2);
         }
     }
@@ -670,7 +670,7 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
                     int bin = round(rot*factor);
                     if(bin==HISTO_LENGTH)
                         bin=0;
-                    BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                    assert(bin>=0 && bin<HISTO_LENGTH);
                     rotHist[bin].push_back(i1);
                 }
             }
@@ -802,7 +802,7 @@ int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
                                 int bin = round(rot*factor);
                                 if(bin==HISTO_LENGTH)
                                     bin=0;
-                                BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                                assert(bin>=0 && bin<HISTO_LENGTH);
                                 rotHist[bin].push_back(idx1);
                             }
                             nmatches++;
@@ -948,7 +948,7 @@ vector<cv::KeyPoint> &vMatchedKeys1, vector<cv::KeyPoint> &vMatchedKeys2, vector
                             int bin = round(rot*factor);
                             if(bin==HISTO_LENGTH)
                                 bin=0;
-                            BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                            assert(bin>=0 && bin<HISTO_LENGTH);
                             rotHist[bin].push_back(idx1);
                         }
 
@@ -1585,7 +1585,7 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
                         int bin = round(rot*factor);
                         if(bin==HISTO_LENGTH)
                             bin=0;
-                        BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                        assert(bin>=0 && bin<HISTO_LENGTH);
                         rotHist[bin].push_back(bestIdx2);
                     }
                 }
@@ -1710,7 +1710,7 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
                         int bin = round(rot*factor);
                         if(bin==HISTO_LENGTH)
                             bin=0;
-                        BOOST_ASSERT(bin>=0 && bin<HISTO_LENGTH);
+                        assert(bin>=0 && bin<HISTO_LENGTH);
                         rotHist[bin].push_back(bestIdx2);
                     }
                 }

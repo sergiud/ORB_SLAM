@@ -26,6 +26,8 @@
 #include <visualization_msgs/Marker.h>
 #endif // HAVE_ROS
 
+#include <mutex>
+
 #include"Map.h"
 #include"MapPoint.h"
 #include"KeyFrame.h"
@@ -72,7 +74,7 @@ private:
     cv::Mat mCameraPose;
     bool mbCameraUpdated;
 
-    boost::mutex mMutexCamera;
+    std::mutex mMutexCamera;
 };
 
 } //namespace ORB_SLAM

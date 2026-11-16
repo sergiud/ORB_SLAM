@@ -20,7 +20,7 @@ The code is in the public domain.
 #####Code in Thirdparty folder
 
 * All code in **DBoW2** folder.
-This is a modified version of [DBoW2](https://github.com/dorian3d/DBoW2) and [DLib](https://github.com/dorian3d/DLib) library. All files included are BSD licensed.
+This is a modified version of the [DBoW2](https://github.com/dorian3d/DBoW2) library. All files included are BSD licensed.
 
 * All code in **g2o** folder.
 This is a modified version of [g2o](https://github.com/RainerKuemmerle/g2o). All files included are BSD licensed.

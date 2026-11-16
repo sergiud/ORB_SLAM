@@ -23,7 +23,9 @@ target_include_directories (DBoW2 PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
 
-target_link_libraries (DBoW2 PUBLIC opencv_core Boost::random DUtils)
+target_link_libraries (DBoW2 PUBLIC opencv_core)
+# The vocabulary owns its scoring object through std::make_unique.
+target_compile_features (DBoW2 PUBLIC cxx_std_14)
 
 set_target_properties (DBoW2 PROPERTIES SOVERSION ${MAJOR_VERSION})
 set_target_properties (DBoW2 PROPERTIES VERSION ${VERSION})

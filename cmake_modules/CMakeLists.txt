@@ -22,16 +22,8 @@ include (CheckCXXCompilerFlag)
 include (CMakePackageConfigHelpers)
 include (GenerateExportHeader)
 
-find_package (Boost 1.72 NO_MODULE REQUIRED COMPONENTS
-  atomic
-  chrono
-  date_time
-  filesystem
-  log
-  program_options
-  random
-  thread
-)
+find_package (Boost 1.72 NO_MODULE REQUIRED COMPONENTS program_options)
+find_package (Threads REQUIRED)
 find_package (g2o 2017.7.30 REQUIRED core types_sba solver_cholmod types_slam3d
   types_sim3)
 find_package (OpenCV 5.0 NO_MODULE REQUIRED core calib imgproc highgui features)
@@ -95,6 +87,10 @@ add_library (ORB_SLAM
   ../src/Tracking.cc
 )
 
+# The public headers use std::stop_token, while the sources format output
+# with std::println.
+target_compile_features (ORB_SLAM PUBLIC cxx_std_20 PRIVATE cxx_std_23)
+
 set_target_properties (ORB_SLAM PROPERTIES SOVERSION ${MAJOR_VERSION})
 set_target_properties (ORB_SLAM PROPERTIES VERSION ${VERSION})
 set_target_properties (ORB_SLAM PROPERTIES CXX_VISIBILITY_PRESET hidden)
@@ -116,10 +112,6 @@ add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/../Thirdparty/DBoW2
 
 target_link_libraries (ORB_SLAM
   PUBLIC
-  Boost::atomic
-  Boost::log
-  Boost::random
-  Boost::thread
   DBoW2
   Eigen3::Eigen
   g2o::types_sba
@@ -127,12 +119,12 @@ target_link_libraries (ORB_SLAM
   opencv_core
   opencv_features
   PRIVATE
-  DUtils
   g2o::core
   g2o::solver_cholmod
   g2o::types_slam3d
   opencv_calib
   opencv_imgproc
+  Threads::Threads
 )
 
 if (MSVC)
@@ -143,12 +135,19 @@ add_executable (run_ORB_SLAM
   ../src/run_ORB_SLAM.cc
 )
 
+target_compile_features (run_ORB_SLAM PRIVATE cxx_std_23)
+
 target_link_libraries (run_ORB_SLAM PRIVATE
   Boost::program_options
-  Boost::thread
   opencv_highgui
   ORB_SLAM
+  Threads::Threads
 )
+
+if (BUILD_TESTING)
+  add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/../tests
+    ${CMAKE_CURRENT_BINARY_DIR}/tests)
+endif (BUILD_TESTING)
 
 generate_export_header (ORB_SLAM EXPORT_FILE_NAME
     ${CMAKE_CURRENT_BINARY_DIR}/ORB_SLAM_export.h)

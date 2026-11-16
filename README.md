@@ -41,9 +41,12 @@ If you use ORB-SLAM in an academic work, please cite:
 
 ##2.1 Boost
 
-We use the Boost library to launch the different threads of our SLAM system.
+The SLAM library runs its threads with the C++ standard library and needs a
+compiler that supports C++23. The command-line program `run_ORB_SLAM` parses
+its options with Boost.Program_Options, and the ROS node starts its threads
+with Boost.Thread.
 
-	sudo apt-get install libboost-all-dev 
+	sudo apt-get install libboost-program-options-dev libboost-thread-dev
 
 ##2.2 ROS
 We use ROS to receive images from the camera or from a recorded sequence (rosbag), and for visualization (rviz, image_view). 
@@ -64,7 +67,7 @@ In order to compile g2o you will need to have installed BLAS, LAPACK and Eigen3 
 	sudo apt-get install libeigen3-dev
 
 ##2.5 DBoW2 (included in Thirdparty)
-We make use of some components of the DBoW2 and DLib library (see original at https://github.com/dorian3d/DBoW2) for place recognition and feature matching. There are no additional dependencies to compile DBoW2.
+We make use of some components of the DBoW2 library (see original at https://github.com/dorian3d/DBoW2) for place recognition and feature matching. There are no additional dependencies to compile DBoW2.
 
 
 #3. Installation

@@ -26,7 +26,7 @@
 #include"Map.h"
 #include "ORB_SLAM_export.h"
 
-#include<boost/thread.hpp>
+#include <mutex>
 
 
 namespace ORB_SLAM
@@ -128,8 +128,8 @@ protected:
 
      Map* mpMap;
 
-     boost::mutex mMutexPos;
-     boost::mutex mMutexFeatures;
+     std::mutex mMutexPos;
+     std::mutex mMutexFeatures;
 };
 
 } //namespace ORB_SLAM

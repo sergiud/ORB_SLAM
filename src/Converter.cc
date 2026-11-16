@@ -25,7 +25,7 @@
 #include "ros/ros.h"
 #endif // HAVE_ROS
 
-#include <boost/assert.hpp>
+#include <cassert>
 
 namespace ORB_SLAM
 {
@@ -131,7 +131,7 @@ Eigen::Matrix<double,3,1> Converter::toVector3d(const cv::Point3f &cvPoint)
 
 Eigen::Matrix<double,2,1> Converter::toVector2d(const cv::Mat &cvVector)
 {
-    BOOST_ASSERT((cvVector.rows==2 && cvVector.cols==1) || (cvVector.cols==2 && cvVector.rows==1));
+    assert((cvVector.rows==2 && cvVector.cols==1) || (cvVector.cols==2 && cvVector.rows==1));
 
     Eigen::Matrix<double,2,1> v;
     v << cvVector.at<float>(0), cvVector.at<float>(1);

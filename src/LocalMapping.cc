@@ -23,10 +23,12 @@
 #include "ORBmatcher.h"
 #include "Optimizer.h"
 
+#include <chrono>
+#include <mutex>
+#include <stop_token>
+
 #ifdef HAVE_ROS
 #include <ros/ros.h>
-#else
-#include <boost/thread/thread.hpp>
 #endif // HAVE_ROS
 
 namespace ORB_SLAM
@@ -48,7 +50,7 @@ void LocalMapping::SetTracker(Tracking *pTracker)
     mpTracker=pTracker;
 }
 
-void LocalMapping::Run()
+void LocalMapping::Run(std::stop_token stopToken)
 {
 #ifdef HAVE_ROS
     ros::Rate r(500);
@@ -110,81 +112,73 @@ void LocalMapping::Run()
         r.sleep();
     }
 #else
-    try {
-        while(1)
+    while(!stopToken.stop_requested())
+    {
+        // Check if there are keyframes in the queue
+        if(CheckNewKeyFrames())
         {
-            boost::this_thread::interruption_point();
+            // Tracking will see that Local Mapping is busy
+            SetAcceptKeyFrames(false);
 
-            // Check if there are keyframes in the queue
-            if(CheckNewKeyFrames())
+            // BoW conversion and insertion in Map
+            ProcessNewKeyFrame();
+
+            // Check recent MapPoints
+            MapPointCulling();
+
+            // Triangulate new MapPoints
+            CreateNewMapPoints();
+
+            // Find more matches in neighbor keyframes and fuse point duplications
+            SearchInNeighbors();
+
+            mbAbortBA = false;
+
+            if(!CheckNewKeyFrames() && !stopRequested())
             {
-                // Tracking will see that Local Mapping is busy
-                SetAcceptKeyFrames(false);
+                // Local BA
+                Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA);
 
-                // BoW conversion and insertion in Map
-                ProcessNewKeyFrame();
+                // Check redundant local Keyframes
+                KeyFrameCulling();
 
-                // Check recent MapPoints
-                MapPointCulling();
+                mpMap->SetFlagAfterBA();
 
-                // Triangulate new MapPoints
-                CreateNewMapPoints();
-
-                // Find more matches in neighbor keyframes and fuse point duplications
-                SearchInNeighbors();
-
-                mbAbortBA = false;
-
-                if(!CheckNewKeyFrames() && !stopRequested())
-                {
-                    // Local BA
-                    Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA);
-
-                    // Check redundant local Keyframes
-                    KeyFrameCulling();
-
-                    mpMap->SetFlagAfterBA();
-
-                    // Tracking will see Local Mapping idle
-                    if(!CheckNewKeyFrames())
-                        SetAcceptKeyFrames(true);
-                }
-
-                if (mpLoopCloser)
-                    mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
+                // Tracking will see Local Mapping idle
+                if(!CheckNewKeyFrames())
+                    SetAcceptKeyFrames(true);
             }
 
-            boost::this_thread::interruption_point();
-
-            // Safe area to stop
-            if(stopRequested())
-            {
-                Stop();
-
-                {
-                    boost::unique_lock<boost::mutex> lock(processMutex);
-                    processNext.wait(lock, !boost::bind(&LocalMapping::isStopped, this));
-                }
-
-                SetAcceptKeyFrames(true);
-            }
-
-            ResetIfRequested();
-
-            {
-                boost::unique_lock<boost::mutex> lock(processMutex);
-                processNext.wait_for(lock, boost::chrono::milliseconds(2));
-            }
+            if (mpLoopCloser)
+                mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
         }
-    }
-    catch (boost::thread_interrupted&) {
+
+        // Safe area to stop
+        if(stopRequested())
+        {
+            Stop();
+
+            {
+                std::unique_lock lock{processMutex};
+                processNext.wait(lock, stopToken, [this] { return !isStopped(); });
+            }
+
+            SetAcceptKeyFrames(true);
+        }
+
+        ResetIfRequested();
+
+        {
+            std::unique_lock lock{processMutex};
+            processNext.wait_for(lock, std::chrono::milliseconds{2});
+        }
     }
 #endif // HAVE_ROS
 }
 
 void LocalMapping::InsertKeyFrame(KeyFrame *pKF)
 {
-    boost::mutex::scoped_lock lock(mMutexNewKFs);
+    std::scoped_lock lock{mMutexNewKFs};
     mlNewKeyFrames.push_back(pKF);
     mbAbortBA=true;
     SetAcceptKeyFrames(false);
@@ -193,14 +187,14 @@ void LocalMapping::InsertKeyFrame(KeyFrame *pKF)
 
 bool LocalMapping::CheckNewKeyFrames()
 {
-    boost::mutex::scoped_lock lock(mMutexNewKFs);
+    std::scoped_lock lock{mMutexNewKFs};
     return(!mlNewKeyFrames.empty());
 }
 
 void LocalMapping::ProcessNewKeyFrame()
 {
     {
-        boost::mutex::scoped_lock lock(mMutexNewKFs);
+        std::scoped_lock lock{mMutexNewKFs};
         mpCurrentKeyFrame = mlNewKeyFrames.front();
         mlNewKeyFrames.pop_front();
     }
@@ -547,34 +541,34 @@ cv::Mat LocalMapping::ComputeF12(KeyFrame *&pKF1, KeyFrame *&pKF2)
 
 void LocalMapping::RequestStop()
 {
-    boost::mutex::scoped_lock lock(mMutexStop);
+    std::scoped_lock lock{mMutexStop};
     mbStopRequested = true;
-    boost::mutex::scoped_lock lock2(mMutexNewKFs);
+    std::scoped_lock lock2{mMutexNewKFs};
     mbAbortBA = true;
     processNext.notify_one();
 }
 
 void LocalMapping::Stop()
 {
-    boost::mutex::scoped_lock lock(mMutexStop);
+    std::scoped_lock lock{mMutexStop};
     mbStopped = true;
 }
 
 bool LocalMapping::isStopped()
 {
-    boost::mutex::scoped_lock lock(mMutexStop);
+    std::scoped_lock lock{mMutexStop};
     return mbStopped;
 }
 
 bool LocalMapping::stopRequested()
 {
-    boost::mutex::scoped_lock lock(mMutexStop);
+    std::scoped_lock lock{mMutexStop};
     return mbStopRequested;
 }
 
 void LocalMapping::Release()
 {
-    boost::mutex::scoped_lock lock(mMutexStop);
+    std::scoped_lock lock{mMutexStop};
     mbStopped = false;
     mbStopRequested = false;
     for(list<KeyFrame*>::iterator lit = mlNewKeyFrames.begin(), lend=mlNewKeyFrames.end(); lit!=lend; lit++)
@@ -584,13 +578,13 @@ void LocalMapping::Release()
 
 bool LocalMapping::AcceptKeyFrames()
 {
-    boost::mutex::scoped_lock lock(mMutexAccept);
+    std::scoped_lock lock{mMutexAccept};
     return mbAcceptKeyFrames;
 }
 
 void LocalMapping::SetAcceptKeyFrames(bool flag)
 {
-    boost::mutex::scoped_lock lock(mMutexAccept);
+    std::scoped_lock lock{mMutexAccept};
     mbAcceptKeyFrames=flag;
 }
 
@@ -665,7 +659,7 @@ cv::Mat LocalMapping::SkewSymmetricMatrix(const cv::Mat &v)
 void LocalMapping::RequestReset()
 {
     {
-        boost::mutex::scoped_lock lock(mMutexReset);
+        std::scoped_lock lock{mMutexReset};
         mbResetRequested = true;
     }
 
@@ -674,14 +668,14 @@ void LocalMapping::RequestReset()
     while(ros::ok())
     {
         {
-        boost::mutex::scoped_lock lock2(mMutexReset);
+        std::scoped_lock lock2{mMutexReset};
         if(!mbResetRequested)
             break;
         }
         r.sleep();
     }
 #else
-    boost::mutex::scoped_lock lock2(mMutexReset);
+    std::unique_lock lock2{mMutexReset};
     resetDone.wait(lock2);
 
     processNext.notify_one();
@@ -690,7 +684,7 @@ void LocalMapping::RequestReset()
 
 void LocalMapping::ResetIfRequested()
 {
-    boost::mutex::scoped_lock lock(mMutexReset);
+    std::scoped_lock lock{mMutexReset};
     if(mbResetRequested)
     {
         mlNewKeyFrames.clear();

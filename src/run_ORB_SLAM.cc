@@ -19,7 +19,14 @@
  * along with ORB-SLAM. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <filesystem>
+#include <fstream>
+#include <functional>
 #include <iostream>
+#include <print>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
@@ -34,12 +41,26 @@
 #include "ORBVocabulary.h"
 #include "Tracking.h"
 
-#include <boost/bind/bind.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/filesystem/path.hpp>
-#include <boost/format.hpp>
+#include <boost/any.hpp>
 #include <boost/program_options.hpp>
-#include <boost/thread/thread.hpp>
+
+namespace boost {
+
+/**
+ * Converts a command-line argument to a path verbatim.
+ *
+ * The default conversion reads a path with `operator>>`, which stops at the
+ * first space and rejects such an argument.
+ */
+void validate(boost::any& value, const std::vector<std::string>& values,
+              std::filesystem::path* /*unused*/, int /*unused*/)
+{
+    program_options::validators::check_first_occurrence(value);
+    value = std::filesystem::path{
+        program_options::validators::get_single_string(values)};
+}
+
+} // namespace boost
 
 namespace {
 
@@ -89,10 +110,10 @@ int main(int argc, char **argv)
     po::positional_options_description pdesc;
     pdesc.add("input", 1);
 
-    boost::filesystem::path inVideoFileName;
-    boost::filesystem::path calibFileName;
-    boost::filesystem::path vocabFileName;
-    boost::filesystem::path trajFileName;
+    std::filesystem::path inVideoFileName;
+    std::filesystem::path calibFileName;
+    std::filesystem::path vocabFileName;
+    std::filesystem::path trajFileName;
     int features = 1000;
     float scale = 1.2f;
     int levels = 8;
@@ -101,10 +122,10 @@ int main(int argc, char **argv)
 
     po::options_description opts("available options");
     opts.add_options()
-        ("input,i", (po::value<boost::filesystem::path>(&inVideoFileName))->required()->value_name("<file>"), "input video file name")
-        ("calibration,c", (po::value<boost::filesystem::path>(&calibFileName))->required()->value_name("<file>"), "calibration file name")
-        ("vocabulary,b", (po::value<boost::filesystem::path>(&vocabFileName))->required()->value_name("<file>"), "vocabulary file name")
-        ("trajectory", (po::value<boost::filesystem::path>(&trajFileName))->value_name("<file>"), "trajectory file name")
+        ("input,i", (po::value(&inVideoFileName))->required()->value_name("<file>"), "input video file name")
+        ("calibration,c", (po::value(&calibFileName))->required()->value_name("<file>"), "calibration file name")
+        ("vocabulary,b", (po::value(&vocabFileName))->required()->value_name("<file>"), "vocabulary file name")
+        ("trajectory", (po::value(&trajFileName))->value_name("<file>"), "trajectory file name")
         ("features,f", po::value<int>(&features)->value_name("<number>"), "number of features")
         ("scale,s", po::value<float>(&scale)->value_name("<factor>"), "scale factor")
         ("level,l", po::value<int>(&levels)->value_name("<number>"), "number of pyramid levels")
@@ -152,7 +173,7 @@ int main(int argc, char **argv)
     ORB_SLAM::ORBVocabulary vocabulary;
 
     if (!vocabFileName.empty()) {
-        std::cout << boost::format("reading vocabulary %1%...") % vocabFileName;
+        std::print("reading vocabulary \"{}\"...", vocabFileName.string());
         vocabulary.loadFromTextFile(vocabFileName.string());
 
         std::cout << ' ' << "done" << std::endl;
@@ -190,15 +211,13 @@ int main(int argc, char **argv)
 
     tracker.SetKeyFrameDatabase(&database);
 
-    boost::thread_group threads;
-
     // Initialize the Local Mapping Thread and launch
     ORB_SLAM::LocalMapping localMapper(&world);
-    threads.create_thread(boost::bind(&ORB_SLAM::LocalMapping::Run,&localMapper));
+    std::jthread localMapping{std::bind_front(&ORB_SLAM::LocalMapping::Run, &localMapper)};
 
     // Initialize the Loop Closing Thread and launch
     ORB_SLAM::LoopClosing loopCloser(&world, &database, &vocabulary);
-    threads.create_thread(boost::bind(&ORB_SLAM::LoopClosing::Run, &loopCloser));
+    std::jthread loopClosing{std::bind_front(&ORB_SLAM::LoopClosing::Run, &loopCloser)};
 
     // Set pointers between threads
     tracker.SetLocalMapper(&localMapper);
@@ -237,12 +256,14 @@ int main(int argc, char **argv)
             stop = true;
     }
 
-    threads.interrupt_all();
-    threads.join_all();
+    localMapping.request_stop();
+    loopClosing.request_stop();
+    localMapping.join();
+    loopClosing.join();
 
     if (!trajFileName.empty()) {
         // Save keyframe poses at the end of the execution
-        boost::filesystem::ofstream f(trajFileName);
+        std::ofstream f(trajFileName);
 
         vector<ORB_SLAM::KeyFrame*> vpKFs = world.GetAllKeyFrames();
         std::sort(vpKFs.begin(), vpKFs.end(), ORB_SLAM::KeyFrame::lId);

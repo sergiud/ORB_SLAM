@@ -24,7 +24,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 
-#include<boost/thread.hpp>
+#include <mutex>
 #ifdef HAVE_ROS
 #include<ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
@@ -71,7 +71,7 @@ cv::Mat FramePublisher::DrawFrame()
 
     //Copy variable to be used within scoped mutex
     {
-        boost::mutex::scoped_lock lock(mMutex);
+        std::scoped_lock lock{mMutex};
         state=mState;
         if(mState==Tracking::SYSTEM_NOT_READY)
             mState=Tracking::NO_IMAGES_YET;
@@ -195,7 +195,7 @@ void FramePublisher::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
 
 void FramePublisher::Update(Tracking *pTracker)
 {
-    boost::mutex::scoped_lock lock(mMutex);
+    std::scoped_lock lock{mMutex};
     pTracker->mCurrentFrame.im.copyTo(mIm);
     mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;
     mvpMatchedMapPoints=pTracker->mCurrentFrame.mvpMapPoints;

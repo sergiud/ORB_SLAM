@@ -23,9 +23,8 @@
 #include "Optimizer.h"
 #include "ORBmatcher.h"
 
-#include <boost/random/uniform_int_distribution.hpp>
-#include <boost/bind/bind.hpp>
-#include <boost/thread/thread.hpp>
+#include <random>
+#include <thread>
 
 namespace ORB_SLAM
 {
@@ -84,7 +83,7 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
         // Select a minimum set
         for(size_t j=0; j<8; j++)
         {
-            boost::random::uniform_int_distribution<std::size_t> dist(0, vAvailableIndices.size() - 1);
+            std::uniform_int_distribution<std::size_t> dist(0, vAvailableIndices.size() - 1);
 
             std::size_t randi = dist(rng_);
             int idx = vAvailableIndices[randi];
@@ -101,12 +100,15 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     float SH, SF;
     cv::Mat H, F;
 
-    boost::thread_group group;
-    group.create_thread(boost::bind(&Initializer::FindHomography,this,boost::ref(vbMatchesInliersH), boost::ref(SH), boost::ref(H)));
-    group.create_thread(boost::bind(&Initializer::FindFundamental,this,boost::ref(vbMatchesInliersF), boost::ref(SF), boost::ref(F)));
-
-    // Wait until both threads have finished
-    group.join_all();
+    {
+        std::jthread homography{[this, &vbMatchesInliersH, &SH, &H] {
+            FindHomography(vbMatchesInliersH, SH, H);
+        }};
+        std::jthread fundamental{[this, &vbMatchesInliersF, &SF, &F] {
+            FindFundamental(vbMatchesInliersF, SF, F);
+        }};
+        // Leaving the scope waits until both threads have finished
+    }
 
     // Compute ratio of scores
     float RH = SH/(SH+SF);

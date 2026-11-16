@@ -32,7 +32,7 @@
 
 #include<opencv2/core.hpp>
 
-#include<boost/thread.hpp>
+#include <mutex>
 
 
 namespace ORB_SLAM
@@ -80,7 +80,7 @@ protected:
 
     Map* mpMap;
 
-    boost::mutex mMutex;
+    std::mutex mMutex;
 };
 
 } //namespace ORB_SLAM

@@ -28,6 +28,10 @@
 
 #include "ORBmatcher.h"
 
+#include <chrono>
+#include <mutex>
+#include <stop_token>
+
 #ifdef HAVE_ROS
 #include <ros/ros.h>
 #endif // HAVE_ROS
@@ -55,7 +59,7 @@ void LoopClosing::SetLocalMapper(LocalMapping *pLocalMapper)
 }
 
 
-void LoopClosing::Run()
+void LoopClosing::Run(std::stop_token stopToken)
 {
 
 #ifdef HAVE_ROS
@@ -82,56 +86,48 @@ void LoopClosing::Run()
         r.sleep();
     }
 #else
-    try {
-        while(1)
+    while(!stopToken.stop_requested())
+    {
+        // Check if there are keyframes in the queue
+        if(CheckNewKeyFrames())
         {
-            boost::this_thread::interruption_point();
-
-            // Check if there are keyframes in the queue
-            if(CheckNewKeyFrames())
+            // Detect loop candidates and check covisibility consistency
+            if(DetectLoop())
             {
-                // Detect loop candidates and check covisibility consistency
-                if(DetectLoop())
-                {
-                   // Compute similarity transformation [sR|t]
-                   if(ComputeSim3())
-                   {
-                       // Perform loop fusion and pose graph optimization
-                       CorrectLoop();
-                   }
-                }
+               // Compute similarity transformation [sR|t]
+               if(ComputeSim3())
+               {
+                   // Perform loop fusion and pose graph optimization
+                   CorrectLoop();
+               }
             }
-
-            boost::this_thread::interruption_point();
-
-            ResetIfRequested();
-
-            boost::unique_lock<boost::mutex> lock(processMutex);
-            processNext.wait_for(lock, boost::chrono::milliseconds(5));
         }
-    }
-    catch (boost::thread_interrupted&) {
+
+        ResetIfRequested();
+
+        std::unique_lock lock{processMutex};
+        processNext.wait_for(lock, std::chrono::milliseconds{5});
     }
 #endif // HAVE_ROS
 }
 
 void LoopClosing::InsertKeyFrame(KeyFrame *pKF)
 {
-    boost::mutex::scoped_lock lock(mMutexLoopQueue);
+    std::scoped_lock lock{mMutexLoopQueue};
     if(pKF->mnId!=0)
         mlpLoopKeyFrameQueue.push_back(pKF);
 }
 
 bool LoopClosing::CheckNewKeyFrames()
 {
-    boost::mutex::scoped_lock lock(mMutexLoopQueue);
+    std::scoped_lock lock{mMutexLoopQueue};
     return(!mlpLoopKeyFrameQueue.empty());
 }
 
 bool LoopClosing::DetectLoop()
 {
     {
-        boost::mutex::scoped_lock lock(mMutexLoopQueue);
+        std::scoped_lock lock{mMutexLoopQueue};
         mpCurrentKF = mlpLoopKeyFrameQueue.front();
         mlpLoopKeyFrameQueue.pop_front();
         // Avoid that a keyframe can be erased while it is being process by this thread
@@ -610,7 +606,7 @@ void LoopClosing::SearchAndFuse(KeyFrameAndPose &CorrectedPosesMap)
 void LoopClosing::RequestReset()
 {
     {
-        boost::mutex::scoped_lock lock(mMutexReset);
+        std::scoped_lock lock{mMutexReset};
         mbResetRequested = true;
     }
 
@@ -619,14 +615,14 @@ void LoopClosing::RequestReset()
     while(ros::ok())
     {
         {
-        boost::mutex::scoped_lock lock2(mMutexReset);
+        std::scoped_lock lock2{mMutexReset};
         if(!mbResetRequested)
             break;
         }
         r.sleep();
     }
 #else
-    boost::mutex::scoped_lock lock2(mMutexReset);
+    std::unique_lock lock2{mMutexReset};
     resetDone.wait(lock2);
 
     processNext.notify_one();
@@ -635,10 +631,10 @@ void LoopClosing::RequestReset()
 
 void LoopClosing::ResetIfRequested()
 {
-    boost::mutex::scoped_lock lock(mMutexReset);
+    std::scoped_lock lock{mMutexReset};
     if(mbResetRequested)
     {
-        boost::mutex::scoped_lock lock(mMutexLoopQueue);
+        std::scoped_lock lock{mMutexLoopQueue};
         mlpLoopKeyFrameQueue.clear();
         mLastLoopKFid=0;
         mbResetRequested=false;

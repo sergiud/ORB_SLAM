@@ -16,7 +16,6 @@ set (VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${VERSION_PATCH}")
 include (CMakePackageConfigHelpers)
 include (GenerateExportHeader)
 
-add_subdirectory (DUtils)
 add_subdirectory (DBoW2)
 
 if (BUILD_TESTING)

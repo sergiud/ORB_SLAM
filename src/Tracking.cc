@@ -37,14 +37,10 @@
 
 #include<iostream>
 #include<fstream>
+#include <format>
+#include <ostream>
+#include <ranges>
 #include <stdexcept>
-
-#include <boost/foreach.hpp>
-#include <boost/format.hpp>
-#include <boost/iterator/zip_iterator.hpp>
-#include <boost/range/iterator_range.hpp>
-#include <boost/throw_exception.hpp>
-#include <boost/tuple/tuple.hpp>
 
 using namespace std;
 
@@ -65,7 +61,8 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     mpInitializer(NULL)
 {
     if (K.empty() || K.cols != 3 || K.rows != 3)
-        BOOST_THROW_EXCEPTION(std::invalid_argument("camera intrinsic matrix must 3x3"));
+        throw std::invalid_argument{std::format(
+            "camera intrinsic matrix must be 3x3, got {}x{}", K.rows, K.cols)};
 
     mK = K;
     mDistCoef = distCoeffs;
@@ -91,10 +88,10 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     if(mbMotionModel)
     {
         mVelocity = cv::Mat::eye(4,4,CV_32F);
-        BOOST_LOG(log_) << "motion model: enabled";
+        std::println(std::clog, "motion model: enabled");
     }
     else
-        BOOST_LOG(log_) << "motion model: disabled (not recommended)";
+        std::println(std::clog, "motion model: disabled (not recommended)");
 }
 
 Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap, string strSettingPath):
@@ -303,7 +300,7 @@ void Tracking::Track(const cv::Mat& im)
         {
             if(mpMap->KeyFramesInMap()<=5)
             {
-                BOOST_LOG(log_) << "error: camera lost; resetting...";
+                std::println(std::clog, "error: camera lost; resetting...");
                 Reset();
                 return;
             }
@@ -457,7 +454,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         {
             if(mpMap->KeyFramesInMap()<=5)
             {
-                BOOST_LOG(log_) << "error: camera lost. resetting...";
+                std::println(std::clog, "error: camera lost. resetting...");
                 Reset();
                 return;
             }
@@ -619,7 +616,7 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     pKFcur->UpdateConnections();
 
     // Bundle Adjustment
-    BOOST_LOG(log_) << str(boost::format("new map created with %d points") % mpMap->MapPointsInMap());
+    std::println(std::clog, "new map created with {} points", mpMap->MapPointsInMap());
 
     Optimizer::GlobalBundleAdjustemnt(mpMap,20);
 
@@ -629,7 +626,7 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
 
     if(medianDepth<0 || pKFcur->TrackedMapPoints()<100)
     {
-        BOOST_LOG(log_) << "wrong initialization, reseting...";
+        std::println(std::clog, "wrong initialization, reseting...");
         Reset();
         return;
     }
@@ -722,7 +719,7 @@ bool Tracking::TrackPreviousFrame()
     mCurrentFrame.mvpMapPoints=vpMapPointMatches;
 
     if(nmatches<10) {
-        BOOST_LOG(log_) << "warning: not enough matches";
+        std::println(std::clog, "warning: not enough matches");
         return false;
     }
 
@@ -1040,7 +1037,7 @@ bool Tracking::Relocalisation()
         vpCandidateKFs= mpKeyFrameDB->DetectRelocalisationCandidates(&mCurrentFrame);
     else // Forced Relocalisation: Relocate against local window around last keyframe
     {
-        boost::mutex::scoped_lock lock(mMutexForceRelocalisation);
+        std::scoped_lock lock{mMutexForceRelocalisation};
         mbForceRelocalisation = false;
         vpCandidateKFs.reserve(10);
         vpCandidateKFs = mpLastKeyFrame->GetBestCovisibilityKeyFrames(9);
@@ -1201,14 +1198,14 @@ bool Tracking::Relocalisation()
 
 void Tracking::ForceRelocalisation()
 {
-    boost::mutex::scoped_lock lock(mMutexForceRelocalisation);
+    std::scoped_lock lock{mMutexForceRelocalisation};
     mbForceRelocalisation = true;
     mnLastRelocFrameId = mCurrentFrame.mnId;
 }
 
 bool Tracking::RelocalisationRequested()
 {
-    boost::mutex::scoped_lock lock(mMutexForceRelocalisation);
+    std::scoped_lock lock{mMutexForceRelocalisation};
     return mbForceRelocalisation;
 }
 
@@ -1216,7 +1213,7 @@ bool Tracking::RelocalisationRequested()
 void Tracking::Reset()
 {
     {
-        boost::mutex::scoped_lock lock(mMutexReset);
+        std::scoped_lock lock{mMutexReset};
         mbPublisherStopped = false;
         mbReseting = true;
     }
@@ -1227,7 +1224,7 @@ void Tracking::Reset()
     while(1)
     {
         {
-            boost::mutex::scoped_lock lock(mMutexReset);
+            std::scoped_lock lock{mMutexReset};
             if(mbPublisherStopped)
                 break;
         }
@@ -1236,7 +1233,7 @@ void Tracking::Reset()
 #else
 #if 0
     while (!mbPublisherStopped)
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(2));
+        std::this_thread::sleep_for(std::chrono::milliseconds{2});
 #endif
 #endif // HAVE_ROS
 
@@ -1256,7 +1253,7 @@ void Tracking::Reset()
     mState = NOT_INITIALIZED;
 
     {
-        boost::mutex::scoped_lock lock(mMutexReset);
+        std::scoped_lock lock{mMutexReset};
         mbReseting = false;
     }
 }
@@ -1266,13 +1263,13 @@ void Tracking::CheckResetByPublishers()
     bool bReseting = false;
 
     {
-        boost::mutex::scoped_lock lock(mMutexReset);
+        std::scoped_lock lock{mMutexReset};
         bReseting = mbReseting;
     }
 
     if(bReseting)
     {
-        boost::mutex::scoped_lock lock(mMutexReset);
+        std::scoped_lock lock{mMutexReset};
         mbPublisherStopped = true;
     }
 
@@ -1282,7 +1279,7 @@ void Tracking::CheckResetByPublishers()
     while(1)
     {
         {
-            boost::mutex::scoped_lock lock(mMutexReset);
+            std::scoped_lock lock{mMutexReset};
             if(!mbReseting)
             {
                 mbPublisherStopped=false;
@@ -1292,28 +1289,7 @@ void Tracking::CheckResetByPublishers()
         r.sleep();
     }
 #else
-    try {
-        while (0) {
-            {
-                boost::mutex::scoped_lock lock(mMutexReset);
-                if(!mbReseting)
-                {
-                    mbPublisherStopped=false;
-                    break;
-                }
-            }
-
-            {
-            }
-        }
-
-        //boost::unique_lock<boost::mutex> lock(processMutex);
-        //resetDone.wait(lock);
-
-        mbPublisherStopped = false;
-    }
-    catch (boost::thread_interrupted&) {
-    }
+    mbPublisherStopped = false;
 #endif // HAVE_ROS
 }
 
@@ -1353,15 +1329,11 @@ std::vector<cv::KeyPoint> Tracking::GetKeyPoints() const
     std::vector<cv::KeyPoint> kps;
     kps.reserve(mCurrentFrame.mvpMapPoints.size());
 
-    boost::tuple<MapPoint*, bool, cv::KeyPoint> p;
-
-    BOOST_FOREACH(p, boost::make_iterator_range(
-                boost::make_zip_iterator(boost::make_tuple(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvbOutlier.begin(), mCurrentFrame.mvKeys.begin())),
-                boost::make_zip_iterator(boost::make_tuple(mCurrentFrame.mvpMapPoints.end(), mCurrentFrame.mvbOutlier.end(), mCurrentFrame.mvKeys.end())))) {
-        bool outlier = p.get<1>();
-
-        if (p.get<0>() && !outlier) {
-            kps.push_back(p.get<2>());
+    for (const auto& [mapPoint, outlier, keyPoint] :
+         std::views::zip(mCurrentFrame.mvpMapPoints, mCurrentFrame.mvbOutlier,
+                         mCurrentFrame.mvKeys)) {
+        if (mapPoint && !outlier) {
+            kps.push_back(keyPoint);
         }
     }
 

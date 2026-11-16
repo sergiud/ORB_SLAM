@@ -21,9 +21,10 @@
 #ifndef LOCALMAPPING_H
 #define LOCALMAPPING_H
 
-#include <boost/atomic/atomic.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/condition_variable.hpp>
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <stop_token>
 
 #include "KeyFrame.h"
 #include "Map.h"
@@ -48,7 +49,7 @@ public:
 
     void SetTracker(Tracking* pTracker);
 
-    void Run();
+    void Run(std::stop_token stopToken);
 
     void InsertKeyFrame(KeyFrame* pKF);
 
@@ -86,7 +87,7 @@ protected:
 
     void ResetIfRequested();
     bool mbResetRequested;
-    boost::mutex mMutexReset;
+    std::mutex mMutexReset;
 
     Map* mpMap;
 
@@ -99,18 +100,18 @@ protected:
 
     std::list<MapPoint*> mlpRecentAddedMapPoints;
 
-    boost::mutex mMutexNewKFs;
-    boost::condition_variable processNext;
-    boost::condition_variable resetDone;
-    boost::mutex processMutex;
+    std::mutex mMutexNewKFs;
+    std::condition_variable_any processNext;
+    std::condition_variable resetDone;
+    std::mutex processMutex;
 
     bool mbAbortBA;
-    boost::atomic<bool> mbStopped;
-    boost::atomic<bool> mbStopRequested;
-    boost::mutex mMutexStop;
+    std::atomic<bool> mbStopped;
+    std::atomic<bool> mbStopRequested;
+    std::mutex mMutexStop;
 
-    boost::atomic<bool> mbAcceptKeyFrames;
-    boost::mutex mMutexAccept;
+    std::atomic<bool> mbAcceptKeyFrames;
+    std::mutex mMutexAccept;
 };
 
 } //namespace ORB_SLAM

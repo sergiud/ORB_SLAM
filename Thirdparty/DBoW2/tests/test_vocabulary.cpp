@@ -9,7 +9,9 @@
 #include <iostream>
 #include <string>
 
+#include "BowVector.h"
 #include "FORB.h"
+#include "ScoringObject.h"
 #include "TemplatedVocabulary.h"
 
 namespace {
@@ -118,6 +120,27 @@ void savesNodesItLoads()
               " lines, got " + std::to_string(lines(saved)));
 }
 
+// A vocabulary scores two vectors with the scoring it was created for.
+template<class Scoring>
+void scoresWith(DBoW2::ScoringType scoring, const std::string& name)
+{
+    DBoW2::BowVector v;
+    v.addWeight(1, 0.5);
+    v.addWeight(2, 0.5);
+
+    DBoW2::BowVector w;
+    w.addWeight(1, 0.25);
+    w.addWeight(2, 0.125);
+    w.addWeight(3, 0.625);
+
+    const Vocabulary vocabulary{10, 5, DBoW2::TF_IDF, scoring};
+    const double expected = Scoring{}.score(v, w);
+    const double actual = vocabulary.score(v, w);
+
+    check(actual == expected, name + " scores " + std::to_string(expected) +
+                                  ", got " + std::to_string(actual));
+}
+
 } // namespace
 
 int main()
@@ -127,6 +150,13 @@ int main()
     rejectsIncompleteHeader("10 5 0\n");
     loadsWordsOfFile();
     savesNodesItLoads();
+    scoresWith<DBoW2::L1Scoring>(DBoW2::L1_NORM, "L1 norm");
+    scoresWith<DBoW2::L2Scoring>(DBoW2::L2_NORM, "L2 norm");
+    scoresWith<DBoW2::ChiSquareScoring>(DBoW2::CHI_SQUARE, "chi square");
+    scoresWith<DBoW2::KLScoring>(DBoW2::KL, "KL divergence");
+    scoresWith<DBoW2::BhattacharyyaScoring>(DBoW2::BHATTACHARYYA,
+                                            "Bhattacharyya");
+    scoresWith<DBoW2::DotProductScoring>(DBoW2::DOT_PRODUCT, "dot product");
 
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

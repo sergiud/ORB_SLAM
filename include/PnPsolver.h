@@ -52,6 +52,9 @@
 #define PNPSOLVER_H
 
 #include <opencv2/core.hpp>
+
+#include <random>
+
 #include "MapPoint.h"
 #include "Frame.h"
 #include "ORB_SLAM_export.h"
@@ -170,6 +173,8 @@ class ORB_SLAM_EXPORT PnPsolver {
 
   // Indices for random selection [0 .. N-1]
   vector<size_t> mvAllIndices;
+
+  std::mt19937 mGenerator;
 
   // RANSAC probability
   double mRansacProb;

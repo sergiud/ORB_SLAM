@@ -43,31 +43,31 @@ MapPoint::MapPoint(const cv::Mat &Pos, KeyFrame *pRefKF, Map* pMap):
 
 void MapPoint::SetWorldPos(const cv::Mat &Pos)
 {
-    boost::mutex::scoped_lock lock(mMutexPos);
+    std::scoped_lock lock{mMutexPos};
     Pos.copyTo(mWorldPos);
 }
 
 cv::Mat MapPoint::GetWorldPos()
 {
-    boost::mutex::scoped_lock lock(mMutexPos);
+    std::scoped_lock lock{mMutexPos};
     return mWorldPos.clone();
 }
 
 cv::Mat MapPoint::GetNormal()
 {
-    boost::mutex::scoped_lock lock(mMutexPos);
+    std::scoped_lock lock{mMutexPos};
     return mNormalVector.clone();
 }
 
 KeyFrame* MapPoint::GetReferenceKeyFrame()
 {
-     boost::mutex::scoped_lock lock(mMutexFeatures);
+     std::scoped_lock lock{mMutexFeatures};
      return mpRefKF;
 }
 
 void MapPoint::AddObservation(KeyFrame* pKF, size_t idx)
 {
-    boost::mutex::scoped_lock lock(mMutexFeatures);
+    std::scoped_lock lock{mMutexFeatures};
     mObservations[pKF]=idx;
 }
 
@@ -75,7 +75,7 @@ void MapPoint::EraseObservation(KeyFrame* pKF)
 {
     bool bBad=false;
     {
-        boost::mutex::scoped_lock lock(mMutexFeatures);
+        std::scoped_lock lock{mMutexFeatures};
         if(mObservations.count(pKF))
         {
             mObservations.erase(pKF);
@@ -95,13 +95,13 @@ void MapPoint::EraseObservation(KeyFrame* pKF)
 
 map<KeyFrame*, size_t> MapPoint::GetObservations()
 {
-    boost::mutex::scoped_lock lock(mMutexFeatures);
+    std::scoped_lock lock{mMutexFeatures};
     return mObservations;
 }
 
 int MapPoint::Observations()
 {
-    boost::mutex::scoped_lock lock(mMutexFeatures);
+    std::scoped_lock lock{mMutexFeatures};
     return mObservations.size();
 }
 
@@ -109,8 +109,8 @@ void MapPoint::SetBadFlag()
 {
     map<KeyFrame*,size_t> obs;
     {
-        boost::mutex::scoped_lock lock1(mMutexFeatures);
-        boost::mutex::scoped_lock lock2(mMutexPos);
+        std::scoped_lock lock1{mMutexFeatures};
+        std::scoped_lock lock2{mMutexPos};
         mbBad=true;
         obs = mObservations;
         mObservations.clear();
@@ -131,8 +131,8 @@ void MapPoint::Replace(MapPoint* pMP)
 
     map<KeyFrame*,size_t> obs;
     {
-        boost::mutex::scoped_lock lock1(mMutexFeatures);
-        boost::mutex::scoped_lock lock2(mMutexPos);
+        std::scoped_lock lock1{mMutexFeatures};
+        std::scoped_lock lock2{mMutexPos};
         obs=mObservations;
         mObservations.clear();
         mbBad=true;
@@ -162,26 +162,26 @@ void MapPoint::Replace(MapPoint* pMP)
 
 bool MapPoint::isBad()
 {
-    boost::mutex::scoped_lock lock(mMutexFeatures);
-    boost::mutex::scoped_lock lock2(mMutexPos);
+    std::scoped_lock lock{mMutexFeatures};
+    std::scoped_lock lock2{mMutexPos};
     return mbBad;
 }
 
 void MapPoint::IncreaseVisible()
 {
-    boost::mutex::scoped_lock lock(mMutexFeatures);
+    std::scoped_lock lock{mMutexFeatures};
     mnVisible++;
 }
 
 void MapPoint::IncreaseFound()
 {
-    boost::mutex::scoped_lock lock(mMutexFeatures);
+    std::scoped_lock lock{mMutexFeatures};
     mnFound++;
 }
 
 float MapPoint::GetFoundRatio()
 {
-    boost::mutex::scoped_lock lock(mMutexFeatures);
+    std::scoped_lock lock{mMutexFeatures};
     return static_cast<float>(mnFound)/mnVisible;
 }
 
@@ -193,7 +193,7 @@ void MapPoint::ComputeDistinctiveDescriptors()
     map<KeyFrame*,size_t> observations;
 
     {
-        boost::mutex::scoped_lock lock1(mMutexFeatures);
+        std::scoped_lock lock1{mMutexFeatures};
         if(mbBad)
             return;
         observations=mObservations;
@@ -247,20 +247,20 @@ void MapPoint::ComputeDistinctiveDescriptors()
     }
 
     {
-        boost::mutex::scoped_lock lock(mMutexFeatures);
+        std::scoped_lock lock{mMutexFeatures};
         mDescriptor = vDescriptors[BestIdx].clone();
     }
 }
 
 cv::Mat MapPoint::GetDescriptor()
 {
-    boost::mutex::scoped_lock lock(mMutexFeatures);
+    std::scoped_lock lock{mMutexFeatures};
     return mDescriptor.clone();
 }
 
 int MapPoint::GetIndexInKeyFrame(KeyFrame *pKF)
 {
-    boost::mutex::scoped_lock lock(mMutexFeatures);
+    std::scoped_lock lock{mMutexFeatures};
     if(mObservations.count(pKF))
         return mObservations[pKF];
     else
@@ -269,7 +269,7 @@ int MapPoint::GetIndexInKeyFrame(KeyFrame *pKF)
 
 bool MapPoint::IsInKeyFrame(KeyFrame *pKF)
 {
-    boost::mutex::scoped_lock lock(mMutexFeatures);
+    std::scoped_lock lock{mMutexFeatures};
     return (mObservations.count(pKF));
 }
 
@@ -279,8 +279,8 @@ void MapPoint::UpdateNormalAndDepth()
     KeyFrame* pRefKF;
     cv::Mat Pos;
     {
-        boost::mutex::scoped_lock lock1(mMutexFeatures);
-        boost::mutex::scoped_lock lock2(mMutexPos);
+        std::scoped_lock lock1{mMutexFeatures};
+        std::scoped_lock lock2{mMutexPos};
         if(mbBad)
             return;
         observations=mObservations;
@@ -307,7 +307,7 @@ void MapPoint::UpdateNormalAndDepth()
     const int nLevels = pRefKF->GetScaleLevels();
 
     {
-        boost::mutex::scoped_lock lock3(mMutexPos);
+        std::scoped_lock lock3{mMutexPos};
         mfMinDistance = (1.0f/scaleFactor)*dist / levelScaleFactor;
         mfMaxDistance = scaleFactor*dist * pRefKF->GetScaleFactor(nLevels-1-level);
         mNormalVector = normal/n;
@@ -316,13 +316,13 @@ void MapPoint::UpdateNormalAndDepth()
 
 float MapPoint::GetMinDistanceInvariance()
 {
-    boost::mutex::scoped_lock lock(mMutexPos);
+    std::scoped_lock lock{mMutexPos};
     return mfMinDistance;
 }
 
 float MapPoint::GetMaxDistanceInvariance()
 {
-    boost::mutex::scoped_lock lock(mMutexPos);
+    std::scoped_lock lock{mMutexPos};
     return mfMaxDistance;
 }
 

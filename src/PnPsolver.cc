@@ -54,7 +54,7 @@
 
 #include <vector>
 #include <cmath>
-#include "Thirdparty/DBoW2/DUtils/Random.h"
+#include <random>
 #ifdef HAVE_ROS
 #include <ros/ros.h>
 #endif // HAVE_ROS
@@ -192,7 +192,8 @@ cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInlie
         // Get min set of points
         for(short i = 0; i < mRansacMinSet; ++i)
         {
-            int randi = DUtils::Random::RandomInt(0, vAvailableIndices.size()-1);
+            std::uniform_int_distribution<std::size_t> dist(0, vAvailableIndices.size() - 1);
+            std::size_t randi = dist(mGenerator);
 
             int idx = vAvailableIndices[randi];
 

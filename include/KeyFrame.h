@@ -31,7 +31,7 @@
 #include "KeyFrameDatabase.h"
 #include "ORB_SLAM_export.h"
 
-#include<boost/thread.hpp>
+#include <mutex>
 
 
 namespace ORB_SLAM
@@ -233,10 +233,10 @@ protected:
 
     Map* mpMap;
 
-    boost::mutex mMutexPose;
-    boost::mutex mMutexConnections;
-    boost::mutex mMutexFeatures;
-    boost::mutex mMutexImage;
+    std::mutex mMutexPose;
+    std::mutex mMutexConnections;
+    std::mutex mMutexFeatures;
+    std::mutex mMutexImage;
 };
 
 } //namespace ORB_SLAM

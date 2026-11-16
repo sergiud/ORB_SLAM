@@ -28,10 +28,8 @@
 #include <algorithm>
 #include <limits>
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_int_distribution.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/scoped_ptr.hpp>
+#include <memory>
+#include <random>
 
 #include "FeatureVector.h"
 #include "BowVector.h"
@@ -421,7 +419,7 @@ protected:
   ScoringType m_scoring;
 
   /// Object for computing scores
-  boost::scoped_ptr<GeneralScoring> m_scoring_object;
+  std::unique_ptr<GeneralScoring> m_scoring_object;
 
   /// Tree nodes
   std::vector<Node> m_nodes;
@@ -431,7 +429,7 @@ protected:
   std::vector<Node*> m_words;
 
   /// Random number generator;
-  boost::random::mt19937 m_generator;
+  std::mt19937 m_generator;
 };
 
 // --------------------------------------------------------------------------
@@ -472,27 +470,27 @@ void TemplatedVocabulary<TDescriptor,F>::createScoringObject()
   switch(m_scoring)
   {
     case L1_NORM:
-      m_scoring_object.reset(new L1Scoring);
+      m_scoring_object = std::make_unique<L1Scoring>();
       break;
 
     case L2_NORM:
-      m_scoring_object.reset(new L2Scoring);
+      m_scoring_object = std::make_unique<L2Scoring>();
       break;
 
     case CHI_SQUARE:
-      m_scoring_object.reset(new ChiSquareScoring);
+      m_scoring_object = std::make_unique<ChiSquareScoring>();
       break;
 
     case KL:
-      m_scoring_object.reset(new KLScoring);
+      m_scoring_object = std::make_unique<KLScoring>();
       break;
 
     case BHATTACHARYYA:
-      m_scoring_object.reset(new BhattacharyyaScoring);
+      m_scoring_object = std::make_unique<BhattacharyyaScoring>();
       break;
 
     case DOT_PRODUCT:
-      m_scoring_object.reset(new DotProductScoring);
+      m_scoring_object = std::make_unique<DotProductScoring>();
       break;
 
   }
@@ -852,7 +850,7 @@ void TemplatedVocabulary<TDescriptor,F>::initiateClustersKMpp(
 
   // 1.
 
-  boost::random::uniform_int_distribution<std::size_t> dist(0, pfeatures.size() - 1);
+  std::uniform_int_distribution<std::size_t> dist(0, pfeatures.size() - 1);
   int ifeature = dist(m_generator);
 
   // create first cluster
@@ -885,7 +883,7 @@ void TemplatedVocabulary<TDescriptor,F>::initiateClustersKMpp(
 
     if(dist_sum > 0)
     {
-      boost::random::uniform_real_distribution<double> dist(0, dist_sum);
+      std::uniform_real_distribution<double> dist(0, dist_sum);
       double cut_d;
       do
       {

@@ -27,7 +27,7 @@
 
 #include<set>
 
-#include<boost/thread.hpp>
+#include <mutex>
 
 namespace ORB_SLAM
 {
@@ -73,7 +73,7 @@ protected:
 
     unsigned int mnMaxKFid;
 
-    boost::mutex mMutexMap;
+    std::mutex mMutexMap;
     bool mbMapUpdated;
 };
 

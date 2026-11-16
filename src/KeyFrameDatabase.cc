@@ -40,7 +40,7 @@ KeyFrameDatabase::KeyFrameDatabase (const ORBVocabulary &voc):
 
 void KeyFrameDatabase::add(KeyFrame *pKF)
 {
-    boost::mutex::scoped_lock lock(mMutex);
+    std::scoped_lock lock{mMutex};
 
     for(DBoW2::BowVector::const_iterator vit= pKF->mBowVec.begin(), vend=pKF->mBowVec.end(); vit!=vend; vit++)
         mvInvertedFile[vit->first].push_back(pKF);
@@ -48,7 +48,7 @@ void KeyFrameDatabase::add(KeyFrame *pKF)
 
 void KeyFrameDatabase::erase(KeyFrame* pKF)
 {
-    boost::mutex::scoped_lock lock(mMutex);
+    std::scoped_lock lock{mMutex};
 
     // Erase elements in the Inverse File for the entry
     for(DBoW2::BowVector::const_iterator vit=pKF->mBowVec.begin(), vend=pKF->mBowVec.end(); vit!=vend; vit++)
@@ -82,7 +82,7 @@ vector<KeyFrame*> KeyFrameDatabase::DetectLoopCandidates(KeyFrame* pKF, float mi
     // Search all keyframes that share a word with current keyframes
     // Discard keyframes connected to the query keyframe
     {
-        boost::mutex::scoped_lock lock(mMutex);
+        std::scoped_lock lock{mMutex};
 
         for(DBoW2::BowVector::const_iterator vit=pKF->mBowVec.begin(), vend=pKF->mBowVec.end(); vit != vend; vit++)
         {
@@ -203,7 +203,7 @@ vector<KeyFrame*> KeyFrameDatabase::DetectRelocalisationCandidates(Frame *F)
 
     // Search all keyframes that share a word with current frame
     {
-        boost::mutex::scoped_lock lock(mMutex);
+        std::scoped_lock lock{mMutex};
 
         for(DBoW2::BowVector::const_iterator vit=F->mBowVec.begin(), vend=F->mBowVec.end(); vit != vend; vit++)
         {

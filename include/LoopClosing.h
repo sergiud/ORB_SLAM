@@ -28,8 +28,9 @@
 #include "Tracking.h"
 #include "ORB_SLAM_export.h"
 
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/condition_variable.hpp>
+#include <condition_variable>
+#include <mutex>
+#include <stop_token>
 
 #include "KeyFrameDatabase.h"
 
@@ -59,7 +60,7 @@ public:
 
     void SetLocalMapper(LocalMapping* pLocalMapper);
 
-    void Run();
+    void Run(std::stop_token stopToken);
 
     void InsertKeyFrame(KeyFrame *pKF);
 
@@ -79,7 +80,7 @@ protected:
 
     void ResetIfRequested();
     bool mbResetRequested;
-    boost::mutex mMutexReset;
+    std::mutex mMutexReset;
 
     Map* mpMap;
     Tracking* mpTracker;
@@ -91,11 +92,11 @@ protected:
 
     std::list<KeyFrame*> mlpLoopKeyFrameQueue;
 
-    boost::mutex mMutexLoopQueue;
+    std::mutex mMutexLoopQueue;
 
-    boost::condition_variable processNext;
-    boost::condition_variable resetDone;
-    boost::mutex processMutex;
+    std::condition_variable_any processNext;
+    std::condition_variable resetDone;
+    std::mutex processMutex;
 
     std::vector<float> mvfLevelSigmaSquare;
 

@@ -25,7 +25,7 @@
 #include "Frame.h"
 #include "ORB_SLAM_export.h"
 
-#include <boost/random/mersenne_twister.hpp>
+#include <random>
 
 
 namespace ORB_SLAM
@@ -97,7 +97,7 @@ private:
     // Ransac sets
     vector<vector<size_t> > mvSets;
 
-    boost::random::mt19937 rng_;
+    std::mt19937 rng_;
 };
 
 } //namespace ORB_SLAM

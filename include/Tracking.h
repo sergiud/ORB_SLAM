@@ -41,11 +41,8 @@
 #include "MapPublisher.h"
 #include "ORB_SLAM_export.h"
 
-#include <boost/atomic/atomic.hpp>
-#include <boost/log/sources/logger.hpp>
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/thread/condition_variable.hpp>
-#include <boost/thread/mutex.hpp>
+#include <atomic>
+#include <mutex>
 
 
 namespace ORB_SLAM
@@ -188,19 +185,16 @@ protected:
     unsigned int mnLastRelocFrameId;
 
     //Mutex
-    boost::mutex mMutexTrack;
-    boost::mutex mMutexForceRelocalisation;
+    std::mutex mMutexTrack;
+    std::mutex mMutexForceRelocalisation;
 
     //Reset
-    boost::atomic<bool> mbPublisherStopped;
-    boost::atomic<bool> mbReseting;
-    boost::mutex mMutexReset;
-
-    boost::condition_variable processNext;
-    boost::mutex processMutex;
+    std::atomic<bool> mbPublisherStopped;
+    std::atomic<bool> mbReseting;
+    std::mutex mMutexReset;
 
     //Is relocalisation requested by an external thread? (loop closing)
-    boost::atomic<bool> mbForceRelocalisation;
+    std::atomic<bool> mbForceRelocalisation;
 
     //Motion Model
     bool mbMotionModel;
@@ -213,7 +207,6 @@ protected:
     // Transfor broadcaster (for visualization in rviz)
     tf::TransformBroadcaster mTfBr;
 #endif // HAVE_ROS
-    boost::log::sources::logger log_;
 };
 
 } //namespace ORB_SLAM
