@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 foreach (_test frame keyframe mappoint matcher optimizer pnpsolver sampling
-    threads tracking)
+    sim3solver threads tracking)
   add_executable (test_${_test} test_${_test}.cc Check.h Frames.h Scene.h
     Storage.h)
   target_compile_features (test_${_test} PRIVATE cxx_std_23)
@@ -23,6 +23,7 @@ add_test (NAME ORB_SLAM/matcher COMMAND test_matcher)
 add_test (NAME ORB_SLAM/optimizer COMMAND test_optimizer)
 add_test (NAME ORB_SLAM/pnpsolver COMMAND test_pnpsolver)
 add_test (NAME ORB_SLAM/sampling COMMAND test_sampling)
+add_test (NAME ORB_SLAM/sim3solver COMMAND test_sim3solver)
 add_test (NAME ORB_SLAM/tracking COMMAND test_tracking)
 
 # The vocabulary is read first and reported with its path, before the
