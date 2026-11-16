@@ -61,6 +61,7 @@ set (ORB_SLAM_HDRS
   ../include/ORBmatcher.h
   ../include/Optimizer.h
   ../include/PnPsolver.h
+  ../include/Sampling.h
   ../include/Sim3Solver.h
   ../include/Tracking.h
   ${CMAKE_CURRENT_BINARY_DIR}/ORB_SLAM_export.h
@@ -83,6 +84,7 @@ add_library (ORB_SLAM
   ../src/ORBmatcher.cc
   ../src/Optimizer.cc
   ../src/PnPsolver.cc
+  ../src/Sampling.cc
   ../src/Sim3Solver.cc
   ../src/Tracking.cc
 )

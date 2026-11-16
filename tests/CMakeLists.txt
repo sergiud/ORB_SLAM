@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-foreach (_test threads tracking)
+foreach (_test sampling threads tracking)
   add_executable (test_${_test} test_${_test}.cc Check.h)
   target_compile_features (test_${_test} PRIVATE cxx_std_23)
   target_link_libraries (test_${_test} PRIVATE ORB_SLAM)
@@ -12,6 +12,7 @@ add_test (NAME ORB_SLAM/threads COMMAND test_threads)
 # A worker that ignores the stop request never returns.
 set_tests_properties (ORB_SLAM/threads PROPERTIES TIMEOUT 60)
 
+add_test (NAME ORB_SLAM/sampling COMMAND test_sampling)
 add_test (NAME ORB_SLAM/tracking COMMAND test_tracking)
 
 # The vocabulary is read first and reported with its path, before the

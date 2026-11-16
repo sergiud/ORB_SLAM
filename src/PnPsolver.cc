@@ -51,10 +51,10 @@
 #include <iostream>
 
 #include "PnPsolver.h"
+#include "Sampling.h"
 
 #include <vector>
 #include <cmath>
-#include <random>
 #ifdef HAVE_ROS
 #include <ros/ros.h>
 #endif // HAVE_ROS
@@ -178,8 +178,6 @@ cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInlie
         return cv::Mat();
     }
 
-    vector<size_t> vAvailableIndices;
-
     int nCurrentIterations = 0;
     while(mnIterations<mRansacMaxIts || nCurrentIterations<nIterations)
     {
@@ -187,20 +185,10 @@ cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInlie
         mnIterations++;
         reset_correspondences();
 
-        vAvailableIndices = mvAllIndices;
-
         // Get min set of points
-        for(short i = 0; i < mRansacMinSet; ++i)
+        for(const std::size_t idx : DrawDistinctIndices(mRansacMinSet, mvAllIndices.size(), mGenerator))
         {
-            std::uniform_int_distribution<std::size_t> dist(0, vAvailableIndices.size() - 1);
-            std::size_t randi = dist(mGenerator);
-
-            int idx = vAvailableIndices[randi];
-
             add_correspondence(mvP3Dw[idx].x,mvP3Dw[idx].y,mvP3Dw[idx].z,mvP2D[idx].x,mvP2D[idx].y);
-
-            vAvailableIndices[idx] = vAvailableIndices.back();
-            vAvailableIndices.pop_back();
         }
 
         // Compute camera pose

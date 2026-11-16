@@ -22,8 +22,8 @@
 
 #include "Optimizer.h"
 #include "ORBmatcher.h"
+#include "Sampling.h"
 
-#include <random>
 #include <thread>
 
 namespace ORB_SLAM
@@ -63,36 +63,13 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
 
     const int N = mvMatches12.size();
 
-    // Indices for minimum set selection
-    vector<size_t> vAllIndices;
-    vAllIndices.reserve(N);
-    vector<size_t> vAvailableIndices;
-
-    for(int i=0; i<N; i++)
-    {
-        vAllIndices.push_back(i);
-    }
-
     // Generate sets of 8 points for each RANSAC iteration
-    mvSets = vector< vector<size_t> >(mMaxIterations,vector<size_t>(8,0));
+    mvSets.clear();
+    mvSets.reserve(mMaxIterations);
 
     for(int it=0; it<mMaxIterations; it++)
     {
-        vAvailableIndices = vAllIndices;
-
-        // Select a minimum set
-        for(size_t j=0; j<8; j++)
-        {
-            std::uniform_int_distribution<std::size_t> dist(0, vAvailableIndices.size() - 1);
-
-            std::size_t randi = dist(rng_);
-            int idx = vAvailableIndices[randi];
-
-            mvSets[it][j] = idx;
-
-            vAvailableIndices[randi] = vAvailableIndices.back();
-            vAvailableIndices.pop_back();
-        }
+        mvSets.push_back(DrawDistinctIndices(8, N, rng_));
     }
 
     // Launch threads to compute in parallel a fundamental matrix and a homography

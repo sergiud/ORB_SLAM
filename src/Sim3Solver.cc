@@ -27,10 +27,9 @@
 #include <ros/ros.h>
 #endif // HAVE_ROS
 
-#include <random>
-
 #include "KeyFrame.h"
 #include "ORBmatcher.h"
+#include "Sampling.h"
 
 namespace ORB_SLAM
 {
@@ -151,8 +150,6 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
         return cv::Mat();
     }
 
-    vector<size_t> vAvailableIndices;
-
     cv::Mat P3Dc1i(3,3,CV_32F);
     cv::Mat P3Dc2i(3,3,CV_32F);
 
@@ -162,21 +159,16 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
         nCurrentIterations++;
         mnIterations++;
 
-        vAvailableIndices = mvAllIndices;
-
         // Get min set of points
+        const std::vector<std::size_t> sample =
+            DrawDistinctIndices(3, mvAllIndices.size(), mGenerator);
+
         for(short i = 0; i < 3; ++i)
         {
-            std::uniform_int_distribution<std::size_t> dist(0, vAvailableIndices.size() - 1);
-            std::size_t randi = dist(mGenerator);
-
-            int idx = vAvailableIndices[randi];
+            const std::size_t idx = sample[i];
 
             mvX3Dc1[idx].copyTo(P3Dc1i.col(i));
             mvX3Dc2[idx].copyTo(P3Dc2i.col(i));
-
-            vAvailableIndices[idx] = vAvailableIndices.back();
-            vAvailableIndices.pop_back();
         }
 
         computeT(P3Dc1i,P3Dc2i);
