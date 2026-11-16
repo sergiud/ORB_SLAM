@@ -63,8 +63,21 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
         throw std::invalid_argument{std::format(
             "camera intrinsic matrix must be 3x3, got {}x{}", K.rows, K.cols)};
 
+    // OpenCV's model has the radial and tangential coefficients k1, k2, p1
+    // and p2, optionally followed by k3.
+    constexpr std::size_t radialTangential = 4;
+    constexpr std::size_t radialTangentialK3 = 5;
+
+    if (!distCoeffs.empty() && distCoeffs.total() != radialTangential &&
+        distCoeffs.total() != radialTangentialK3)
+        throw std::invalid_argument{std::format(
+            "distortion coefficients must hold {} or {} values, got {}",
+            radialTangential, radialTangentialK3, distCoeffs.total())};
+
     mK = K;
-    mDistCoef = distCoeffs;
+    mDistCoef = distCoeffs.empty()
+        ? cv::Mat::zeros(radialTangential, 1, CV_32F)
+        : distCoeffs;
 
     if(fps==0)
         fps=30;

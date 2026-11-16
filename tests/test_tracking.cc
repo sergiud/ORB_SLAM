@@ -11,6 +11,7 @@
 #include <iostream>
 #include <memory>
 #include <new>
+#include <optional>
 #include <print>
 #include <sstream>
 #include <stdexcept>
@@ -112,6 +113,63 @@ void rejectsCameraMatrix(const cv::Mat& K, std::string_view expected)
           std::format("the error reads {:?}, got {:?}", expected, message));
 }
 
+// Distortion coefficients other than the 4 or 5 of OpenCV's model are
+// rejected with their number, while those are accepted.
+void rejectsDistortion(const cv::Mat& distortion, std::string_view expected)
+{
+    std::string message;
+
+    try {
+        ORB_SLAM::Tracking{nullptr, nullptr, nullptr, nullptr,
+                           cv::Mat1f::eye(3, 3), distortion, framesPerSecond,
+                           features, scaleFactor, levels, fastThreshold,
+                           harrisScore, /*useMotionModel=*/true};
+    }
+    catch (const std::invalid_argument& e) {
+        message = e.what();
+    }
+
+    check(message == expected,
+          std::format("the error reads {:?}, got {:?}", expected, message));
+}
+
+// Exposes the distortion the tracker undistorts keypoints with.
+class DistortionTracking : public ORB_SLAM::Tracking
+{
+public:
+    using ORB_SLAM::Tracking::Tracking;
+    using ORB_SLAM::Tracking::mDistCoef;
+};
+
+// A camera without distortion coefficients has no distortion, as a
+// calibration without them describes.
+void emptyDistortionMeansNone()
+{
+    constexpr int coefficients = 4;
+
+    std::optional<DistortionTracking> tracking;
+
+    try {
+        tracking.emplace(nullptr, nullptr, nullptr, nullptr,
+                         cv::Mat1f::eye(3, 3), cv::Mat{}, framesPerSecond,
+                         features, scaleFactor, levels, fastThreshold,
+                         harrisScore, /*useMotionModel=*/true);
+    }
+    catch (const std::invalid_argument& e) {
+        check(false, std::format("a camera without distortion coefficients is "
+                                 "accepted, got {:?}",
+                                 e.what()));
+        return;
+    }
+
+    const cv::Mat& distortion = tracking->mDistCoef;
+
+    check(distortion.total() == coefficients && distortion.type() == CV_32F &&
+              cv::countNonZero(distortion) == 0,
+          std::format("the camera has {} zero distortion coefficients, got {} "
+                      "of type {}",
+                      coefficients, distortion.total(), distortion.type()));
+}
 
 // Only the keypoints of the current frame that see a map point and are no
 // outliers are tracked.
@@ -274,15 +332,24 @@ void framesCarryImageTime()
           std::format("the frame carries the time {} of its image, got {}",
                       timestamp, tracking.mCurrentFrame.mTimeStamp));
 }
+
 } // namespace
 
 int main()
 {
+    // The other tests construct trackers without distortion coefficients.
+    emptyDistortionMeansNone();
     logsMotionModel(true, "motion model: enabled\n");
     logsMotionModel(false, "motion model: disabled (not recommended)\n");
     rejectsCameraMatrix(cv::Mat1f::eye(2, 3),
                         "camera intrinsic matrix must be 3x3, got 2x3");
     rejectsCameraMatrix(cv::Mat{}, "camera intrinsic matrix must be 3x3, got 0x0");
+    rejectsDistortion(cv::Mat1f::zeros(1, 3),
+                      "distortion coefficients must hold 4 or 5 values, got 3");
+    rejectsDistortion(cv::Mat1f::zeros(1, 8),
+                      "distortion coefficients must hold 4 or 5 values, got 8");
+    rejectsDistortion(cv::Mat1f::zeros(1, 4), "");
+    rejectsDistortion(cv::Mat1f::zeros(1, 5), "");
     keyPointsOfInliers();
     dropsRefusedKeyFrame();
     settingsTrackerStartsEmpty();
