@@ -164,7 +164,6 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
     vector<int> rotHist[HISTO_LENGTH];
     for(int i=0;i<HISTO_LENGTH;i++)
         rotHist[i].reserve(500);
-    const float factor = 1.0f/HISTO_LENGTH;
 
     // We perform the matching over ORB that belong to the same vocabulary node (at a certain level)
     DBoW2::FeatureVector::iterator KFit = vFeatVecKF.begin();
@@ -230,14 +229,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
 
                         if(mbCheckOrientation)
                         {
-                            float rot = kp.angle-F.mvKeys[bestIdxF].angle;
-                            if(rot<0.0)
-                                rot+=360.0f;
-                            int bin = round(rot*factor);
-                            if(bin==HISTO_LENGTH)
-                                bin=0;
-                            assert(bin>=0 && bin<HISTO_LENGTH);
-                            rotHist[bin].push_back(bestIdxF);
+                            rotHist[RotationBin(kp.angle,F.mvKeys[bestIdxF].angle)].push_back(bestIdxF);
                         }
                         nmatches++;
                     }
@@ -414,7 +406,6 @@ int ORBmatcher::WindowSearch(Frame &F1, Frame &F2, int windowSize, vector<MapPoi
     vector<int> rotHist[HISTO_LENGTH];
     for(int i=0;i<HISTO_LENGTH;i++)
         rotHist[i].reserve(500);
-    const float factor = 1.0f/HISTO_LENGTH;
 
     const bool bMinLevel = minScaleLevel>0;
     const bool bMaxLevel= maxScaleLevel<INT_MAX;
@@ -478,14 +469,7 @@ int ORBmatcher::WindowSearch(Frame &F1, Frame &F2, int windowSize, vector<MapPoi
             vnMatches21[bestIdx2]=i1;
             nmatches++;
 
-            float rot = F1.mvKeysUn[i1].angle-F2.mvKeysUn[bestIdx2].angle;
-            if(rot<0.0)
-                rot+=360.0f;
-            int bin = round(rot*factor);
-            if(bin==HISTO_LENGTH)
-                bin=0;
-            assert(bin>=0 && bin<HISTO_LENGTH);
-            rotHist[bin].push_back(bestIdx2);
+            rotHist[RotationBin(F1.mvKeysUn[i1].angle,F2.mvKeysUn[bestIdx2].angle)].push_back(bestIdx2);
         }
     }
 
@@ -602,7 +586,6 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
     vector<int> rotHist[HISTO_LENGTH];
     for(int i=0;i<HISTO_LENGTH;i++)
         rotHist[i].reserve(500);
-    const float factor = 1.0f/HISTO_LENGTH;
 
     vector<int> vMatchedDistance(F2.mvKeysUn.size(),INT_MAX);
     vector<int> vnMatches21(F2.mvKeysUn.size(),-1);
@@ -664,14 +647,7 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
 
                 if(mbCheckOrientation)
                 {
-                    float rot = F1.mvKeysUn[i1].angle-F2.mvKeysUn[bestIdx2].angle;
-                    if(rot<0.0)
-                        rot+=360.0f;
-                    int bin = round(rot*factor);
-                    if(bin==HISTO_LENGTH)
-                        bin=0;
-                    assert(bin>=0 && bin<HISTO_LENGTH);
-                    rotHist[bin].push_back(i1);
+                    rotHist[RotationBin(F1.mvKeysUn[i1].angle,F2.mvKeysUn[bestIdx2].angle)].push_back(i1);
                 }
             }
         }
@@ -730,7 +706,6 @@ int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
     for(int i=0;i<HISTO_LENGTH;i++)
         rotHist[i].reserve(500);
 
-    const float factor = 1.0f/HISTO_LENGTH;
 
     int nmatches = 0;
 
@@ -796,14 +771,7 @@ int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
 
                             if(mbCheckOrientation)
                             {
-                                float rot = vKeysUn1[idx1].angle-vKeysUn2[bestIdx2].angle;
-                                if(rot<0.0)
-                                    rot+=360.0f;
-                                int bin = round(rot*factor);
-                                if(bin==HISTO_LENGTH)
-                                    bin=0;
-                                assert(bin>=0 && bin<HISTO_LENGTH);
-                                rotHist[bin].push_back(idx1);
+                                rotHist[RotationBin(vKeysUn1[idx1].angle,vKeysUn2[bestIdx2].angle)].push_back(idx1);
                             }
                             nmatches++;
                         }
@@ -873,7 +841,6 @@ vector<cv::KeyPoint> &vMatchedKeys1, vector<cv::KeyPoint> &vMatchedKeys2, vector
     for(int i=0;i<HISTO_LENGTH;i++)
         rotHist[i].reserve(500);
 
-    const float factor = 1.0f/HISTO_LENGTH;
 
     DBoW2::FeatureVector::iterator f1it = vFeatVec1.begin();
     DBoW2::FeatureVector::iterator f2it = vFeatVec2.begin();
@@ -942,14 +909,7 @@ vector<cv::KeyPoint> &vMatchedKeys1, vector<cv::KeyPoint> &vMatchedKeys2, vector
 
                         if(mbCheckOrientation)
                         {
-                            float rot = kp1.angle-kp2.angle;
-                            if(rot<0.0)
-                                rot+=360.0f;
-                            int bin = round(rot*factor);
-                            if(bin==HISTO_LENGTH)
-                                bin=0;
-                            assert(bin>=0 && bin<HISTO_LENGTH);
-                            rotHist[bin].push_back(idx1);
+                            rotHist[RotationBin(kp1.angle,kp2.angle)].push_back(idx1);
                         }
 
                         break;
@@ -1511,7 +1471,6 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
     vector<int> rotHist[HISTO_LENGTH];
     for(int i=0;i<HISTO_LENGTH;i++)
         rotHist[i].reserve(500);
-    const float factor = 1.0f/HISTO_LENGTH;
 
     const cv::Mat Rcw = CurrentFrame.mTcw.rowRange(0,3).colRange(0,3);
     const cv::Mat tcw = CurrentFrame.mTcw.rowRange(0,3).col(3);
@@ -1579,14 +1538,7 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
 
                     if(mbCheckOrientation)
                     {
-                        float rot = LastFrame.mvKeysUn[i].angle-CurrentFrame.mvKeysUn[bestIdx2].angle;
-                        if(rot<0.0)
-                            rot+=360.0f;
-                        int bin = round(rot*factor);
-                        if(bin==HISTO_LENGTH)
-                            bin=0;
-                        assert(bin>=0 && bin<HISTO_LENGTH);
-                        rotHist[bin].push_back(bestIdx2);
+                        rotHist[RotationBin(LastFrame.mvKeysUn[i].angle,CurrentFrame.mvKeysUn[bestIdx2].angle)].push_back(bestIdx2);
                     }
                 }
             }
@@ -1630,7 +1582,6 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
     vector<int> rotHist[HISTO_LENGTH];
     for(int i=0;i<HISTO_LENGTH;i++)
         rotHist[i].reserve(500);
-    const float factor = 1.0f/HISTO_LENGTH;
 
     vector<MapPoint*> vpMPs = pKF->GetMapPointMatches();
 
@@ -1704,14 +1655,7 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
 
                     if(mbCheckOrientation)
                     {
-                        float rot = pKF->GetKeyPointUn(i).angle-CurrentFrame.mvKeysUn[bestIdx2].angle;
-                        if(rot<0.0)
-                            rot+=360.0f;
-                        int bin = round(rot*factor);
-                        if(bin==HISTO_LENGTH)
-                            bin=0;
-                        assert(bin>=0 && bin<HISTO_LENGTH);
-                        rotHist[bin].push_back(bestIdx2);
+                        rotHist[RotationBin(pKF->GetKeyPointUn(i).angle,CurrentFrame.mvKeysUn[bestIdx2].angle)].push_back(bestIdx2);
                     }
                 }
 
@@ -1742,6 +1686,22 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
    }
 
     return nmatches;
+}
+
+int ORBmatcher::RotationBin(float angle1, float angle2)
+{
+    constexpr float fullTurn = 360;
+
+    float rot = angle1-angle2;
+    if(rot<0.0)
+        rot+=fullTurn;
+    // Bins are centered on multiples of their width, so that rotations close
+    // to zero in either direction share the first bin.
+    int bin = round(rot*HISTO_LENGTH/fullTurn);
+    if(bin==HISTO_LENGTH)
+        bin=0;
+    assert(bin>=0 && bin<HISTO_LENGTH);
+    return bin;
 }
 
 void ORBmatcher::ComputeThreeMaxima(vector<int>* histo, const int L, int &ind1, int &ind2, int &ind3)

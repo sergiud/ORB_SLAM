@@ -99,6 +99,12 @@ protected:
 
     float RadiusByViewingCos(const float &viewCos);
 
+    /**
+     * Returns the bin of the rotation histogram that holds the difference of
+     * two keypoint angles in degrees.
+     */
+    static int RotationBin(float angle1, float angle2);
+
     void ComputeThreeMaxima(std::vector<int>* histo, const int L, int &ind1, int &ind2, int &ind3);
 
     float mfNNratio;
