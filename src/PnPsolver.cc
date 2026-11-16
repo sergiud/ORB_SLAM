@@ -144,14 +144,7 @@ void PnPsolver::SetRansacParameters(double probability, int minInliers, int maxI
         mRansacEpsilon=(float)mRansacMinInliers/N;
 
     // Set RANSAC iterations according to probability, epsilon, and max iterations
-    int nIterations;
-
-    if(mRansacMinInliers==N)
-        nIterations=1;
-    else
-        nIterations = ceil(log(1-mRansacProb)/log(1-pow(mRansacEpsilon,3)));
-
-    mRansacMaxIts = max(1,min(nIterations,mRansacMaxIts));
+    mRansacMaxIts = RansacIterations(mRansacProb, mRansacEpsilon, mRansacMinSet, mRansacMaxIts);
 
     mvMaxError.resize(mvSigma2.size());
     for(size_t i=0; i<mvSigma2.size(); i++)
@@ -179,7 +172,7 @@ cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInlie
     }
 
     int nCurrentIterations = 0;
-    while(mnIterations<mRansacMaxIts || nCurrentIterations<nIterations)
+    while(mnIterations<mRansacMaxIts && nCurrentIterations<nIterations)
     {
         nCurrentIterations++;
         mnIterations++;

@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-foreach (_test frame keyframe mappoint matcher optimizer sampling threads
-    tracking)
+foreach (_test frame keyframe mappoint matcher optimizer pnpsolver sampling
+    threads tracking)
   add_executable (test_${_test} test_${_test}.cc Check.h Frames.h Scene.h
     Storage.h)
   target_compile_features (test_${_test} PRIVATE cxx_std_23)
@@ -21,6 +21,7 @@ set_tests_properties (ORB_SLAM/keyframe PROPERTIES TIMEOUT 120)
 add_test (NAME ORB_SLAM/mappoint COMMAND test_mappoint)
 add_test (NAME ORB_SLAM/matcher COMMAND test_matcher)
 add_test (NAME ORB_SLAM/optimizer COMMAND test_optimizer)
+add_test (NAME ORB_SLAM/pnpsolver COMMAND test_pnpsolver)
 add_test (NAME ORB_SLAM/sampling COMMAND test_sampling)
 add_test (NAME ORB_SLAM/tracking COMMAND test_tracking)
 

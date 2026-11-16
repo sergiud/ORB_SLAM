@@ -4,7 +4,9 @@
 
 #include "Sampling.h"
 
+#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <numeric>
 
 namespace ORB_SLAM
@@ -34,6 +36,22 @@ std::vector<std::size_t> DrawDistinctIndices(std::size_t count,
     }
 
     return drawn;
+}
+
+int RansacIterations(double probability, double inlierRatio, int sampleSize,
+                     int maxIterations)
+{
+    // With all correspondences inliers, any sample consists of inliers.
+    if (!(inlierRatio < 1)) {
+        return 1;
+    }
+
+    const double iterations =
+        std::ceil(std::log1p(-probability) /
+                  std::log1p(-std::pow(inlierRatio, sampleSize)));
+
+    return static_cast<int>(
+        std::clamp(iterations, 1.0, static_cast<double>(maxIterations)));
 }
 
 } // namespace ORB_SLAM

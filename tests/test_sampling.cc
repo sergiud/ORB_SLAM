@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <format>
 #include <random>
+#include <utility>
 #include <vector>
 
 #include "Check.h"
@@ -66,10 +67,72 @@ void drawsEveryIndexFirst(std::size_t count, std::size_t size)
                       size, draws, count, first));
 }
 
+// The iterations draw a sample of inliers with the given probability, using
+// the size of the sample.
+void ransacIterationsFollowSampleSize()
+{
+    constexpr double probability = 0.99;
+    constexpr double inlierRatio = 0.5;
+    constexpr int maxIterations = 300;
+
+    // ceil(log(0.01) / log(1 - 0.5^k)) for k = 3 and k = 4.
+    constexpr int threePoints = 35;
+    constexpr int fourPoints = 72;
+
+    for (const auto [sampleSize, expected] :
+         {std::pair{3, threePoints}, std::pair{4, fourPoints}}) {
+        const int iterations = ORB_SLAM::RansacIterations(
+            probability, inlierRatio, sampleSize, maxIterations);
+
+        check(iterations == expected,
+              std::format("samples of {} need {} iterations, got {}",
+                          sampleSize, expected, iterations));
+    }
+}
+
+// With more inliers required than correspondences exist, the inlier ratio
+// exceeds 1 and a single iteration is enough to find out.
+void ransacIterationsForAllInliers()
+{
+    constexpr double probability = 0.99;
+    constexpr int sampleSize = 4;
+    constexpr int maxIterations = 300;
+
+    for (const double inlierRatio : {1.0, 1.5}) {
+        const int iterations = ORB_SLAM::RansacIterations(
+            probability, inlierRatio, sampleSize, maxIterations);
+
+        check(iterations == 1,
+              std::format("an inlier ratio of {} needs 1 iteration, got {}",
+                          inlierRatio, iterations));
+    }
+}
+
+// The number of iterations stays between 1 and the given maximum.
+void ransacIterationsWithinBounds()
+{
+    constexpr double inlierRatio = 0.5;
+    constexpr int sampleSize = 4;
+    constexpr int maxIterations = 50;
+
+    const int capped =
+        ORB_SLAM::RansacIterations(0.99, inlierRatio, sampleSize, maxIterations);
+    const int least =
+        ORB_SLAM::RansacIterations(0, inlierRatio, sampleSize, maxIterations);
+
+    check(capped == maxIterations,
+          std::format("at most {} iterations run, got {}", maxIterations,
+                      capped));
+    check(least == 1, std::format("at least 1 iteration runs, got {}", least));
+}
+
 } // namespace
 
 int main()
 {
+    ransacIterationsWithinBounds();
+    ransacIterationsFollowSampleSize();
+    ransacIterationsForAllInliers();
     drawsEveryIndexFirst(3, 4);
     drawsEveryIndexFirst(1, 2);
     drawsDistinctIndices(3, 4);

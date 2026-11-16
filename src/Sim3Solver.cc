@@ -126,14 +126,7 @@ void Sim3Solver::SetRansacParameters(double probability, int minInliers, int max
     float epsilon = (float)mRansacMinInliers/N;
 
     // Set RANSAC iterations according to probability, epsilon, and max iterations
-    int nIterations;
-
-    if(mRansacMinInliers==N)
-        nIterations=1;
-    else
-        nIterations = ceil(log(1-mRansacProb)/log(1-pow(epsilon,3)));
-
-    mRansacMaxIts = max(1,min(nIterations,mRansacMaxIts));
+    mRansacMaxIts = RansacIterations(mRansacProb, epsilon, 3, mRansacMaxIts);
 
     mnIterations = 0;
 }
