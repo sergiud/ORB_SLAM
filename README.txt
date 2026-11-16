@@ -1,5 +1,5 @@
 ORB-SLAM Monocular
-Current Version: 1.0.1 (see changelog.txt)
+Current Version: 1.0.1 (see Changelog.md)
 
 ORB-SLAM is a versatile and accurate Monocular SLAM solution able to compute in real-time the camera trajectory and a sparse 3D reconstruction of the scene in a wide variety of environments, ranging from small hand-held sequences to a car driven around several city blocks. It is able to close large loops and perform global relocalisation in real-time and from wide baselines.
 
@@ -54,12 +54,12 @@ If you do not have already installed ROS in your computer, we recommend you to i
 If you use ROS Indigo, remove the depency of opencv2 in the manifest.xml.
 
 2.3 OpenCV
-We use OpenCV to manipulate images and features. If you use a ROS version older than ROS Indigo, OpenCV is already included in the ROS distribution. In newer version of ROS, OpenCV is not included and you will need to install it. We tested OpenCV 2.4.
-Dowload and install instructions can be found at: http://opencv.org/
+We use OpenCV to manipulate images and features. ORB-SLAM needs OpenCV 5.0 or later with the core, calib, imgproc, highgui and features modules.
+Download and install instructions can be found at: http://opencv.org/
 
-2.4 g2o (included in Thirdparty)
-We use a modified version of g2o (see original at https://github.com/RainerKuemmerle/g2o) to perform optimizations.
-In order to compile g2o you will need to have installed BLAS, LAPACK and Eigen3 (at least 3.1.0).
+2.4 g2o and Eigen
+We use g2o (https://github.com/RainerKuemmerle/g2o) to perform optimizations. Install g2o 2017.7.30 or later with its core, types_sba, types_slam3d and types_sim3 libraries. Build g2o with the same -march flags as ORB-SLAM, since g2o chooses the alignment of its Eigen types by them and the two do not link otherwise.
+ORB-SLAM needs Eigen 3.4.1 or later, up to version 5. g2o needs BLAS and LAPACK in addition.
 
 	sudo apt-get install libblas-dev
 	sudo apt-get install liblapack-dev
@@ -81,15 +81,7 @@ We make use of some components of the DBoW2 library (see original at https://git
 
 		export ROS_PACKAGE_PATH=${ROS_PACKAGE_PATH}:PATH_TO_PARENT_OF_ORB_SLAM
 
-  4) Build g2o. Go into `Thirdparty/g2o/` and execute:
-
-		mkdir build
-		cd build
-		cmake .. -DCMAKE_BUILD_TYPE=Release
-		make 
-
-	Tip: To achieve the best performance in your computer, set your favorite compilation flags in line 61 and 62 of `Thirdparty/g2o/CMakeLists.txt` 
-		  (by default -03 -march=native)
+  4) Install g2o as section 2.4 describes.
 
   5) Build DBoW2. Go into Thirdparty/DBoW2/ and execute:
 
@@ -169,7 +161,7 @@ We provide the settings and the rosbag of an example sequence in our lab. In thi
 
   in ROS Groovy or newer versions:
 
-	  roslaunch ExampleGroovyHydro.launch
+	  roslaunch ExampleGroovyOrNewer.launch
 
   3) Once the ORB vocabulary has been loaded, play the rosbag (press space to start):
 
