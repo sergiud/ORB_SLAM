@@ -44,14 +44,10 @@ public:
     void AddMapPoint(MapPoint* pMP);
     void EraseMapPoint(MapPoint* pMP);
     void EraseKeyFrame(KeyFrame* pKF);
-    void SetCurrentCameraPose(cv::Mat Tcw);
-    void SetReferenceKeyFrames(const std::vector<KeyFrame*> &vpKFs);
     void SetReferenceMapPoints(const std::vector<MapPoint*> &vpMPs);
 
     std::vector<KeyFrame*> GetAllKeyFrames();
     std::vector<MapPoint*> GetAllMapPoints();
-    cv::Mat GetCameraPose();
-    std::vector<KeyFrame*> GetReferenceKeyFrames();
     std::vector<MapPoint*> GetReferenceMapPoints();
 
     int MapPointsInMap();
