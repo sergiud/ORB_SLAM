@@ -84,8 +84,9 @@ void MapPoint::EraseObservation(KeyFrame* pKF)
         {
             mObservations.erase(pKF);
 
+            // A point without observations has no reference keyframe.
             if(mpRefKF==pKF)
-                mpRefKF=mObservations.begin()->first;
+                mpRefKF=mObservations.empty() ? NULL : mObservations.begin()->first;
 
             // If only 2 observations or less, discard point
             if(mObservations.size()<=2)
