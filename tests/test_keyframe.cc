@@ -233,6 +233,69 @@ void mapPointsReplacedConcurrently()
     done = true;
 }
 
+// Returns a vocabulary of a few words, which keyframes can share.
+ORB_SLAM::ORBVocabulary wordsVocabulary()
+{
+    constexpr int branching = 3;
+    constexpr int depth = 1;
+    constexpr int descriptorBytes = ORB_SLAM::tests::descriptorBytes;
+
+    std::vector<cv::Mat> descriptors;
+
+    for (const unsigned char byte : {0x00, 0x0F, 0xFF}) {
+        descriptors.push_back(
+            cv::Mat(1, descriptorBytes, CV_8U, cv::Scalar::all(byte)));
+    }
+
+    ORB_SLAM::ORBVocabulary vocabulary;
+    vocabulary.create({descriptors}, branching, depth);
+    return vocabulary;
+}
+
+// Relocalisation ranks keyframes by their similarity to the frame, summed
+// over covisible keyframes. A neighbor that shares too few words with the
+// frame to be compared adds no similarity, also if it kept one from an
+// earlier query.
+void relocalisationIgnoresUncomparedNeighbors()
+{
+    constexpr float staleScore = 100;
+    constexpr int weight = 50;
+    constexpr DBoW2::WordId first = 1;
+    constexpr DBoW2::WordId second = 2;
+    constexpr long unsigned int frameId = 1000;
+
+    ORB_SLAM::tests::Scene scene{wordsVocabulary()};
+    addKeyFrame(scene);
+    ORB_SLAM::KeyFrame* const similar = addKeyFrame(scene);
+    ORB_SLAM::KeyFrame* const neighbor = addKeyFrame(scene);
+
+    similar->mBowVec.addWeight(first, 0.5);
+    similar->mBowVec.addWeight(second, 0.5);
+    neighbor->mBowVec.addWeight(first, 1.0);
+    neighbor->mRelocScore = staleScore;
+    similar->AddConnection(neighbor, weight);
+
+    scene.database().add(similar);
+    scene.database().add(neighbor);
+
+    ORB_SLAM::Frame frame =
+        ORB_SLAM::tests::makeFrame(cv::Mat::eye(4, 4, CV_32F));
+    frame.mnId = frameId;
+    frame.mBowVec = similar->mBowVec;
+
+    const std::vector<ORB_SLAM::KeyFrame*> candidates =
+        scene.database().DetectRelocalisationCandidates(&frame);
+
+    check(candidates == std::vector<ORB_SLAM::KeyFrame*>{similar},
+          std::format("the keyframe that shares all words is the only "
+                      "candidate, got {} candidates, the first being the "
+                      "{}",
+                      candidates.size(),
+                      candidates.empty() ? "none"
+                      : candidates.front() == similar ? "similar keyframe"
+                                                       : "neighbor"));
+}
+
 } // namespace
 
 int main()
@@ -241,6 +304,7 @@ int main()
     erasedKeyFrameKeepsNoConnections();
     erasedKeyFrameStaysDisconnected();
     mapPointsReplacedConcurrently();
+    relocalisationIgnoresUncomparedNeighbors();
 
     return ORB_SLAM::tests::exitStatus();
 }
