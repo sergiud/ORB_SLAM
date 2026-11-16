@@ -55,6 +55,22 @@ public:
 protected:
 
     void ComputePyramid(cv::Mat image, cv::Mat Mask=cv::Mat());
+    //! Columns and rows of the cells that a pyramid level is divided into.
+    struct Grid
+    {
+        int cols;
+        int rows;
+    };
+
+    /**
+     * Returns the cells that spread the features of a pyramid level over its
+     * image.
+     *
+     * @param features The number of features the level retains.
+     * @param imageRatio The width of the image divided by its height.
+     */
+    static Grid CellGrid(int features, float imageRatio);
+
     void ComputeKeyPoints(std::vector<std::vector<cv::KeyPoint> >& allKeypoints);
 
     std::vector<cv::Point> pattern;

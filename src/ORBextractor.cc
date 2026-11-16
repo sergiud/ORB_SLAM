@@ -60,6 +60,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/features.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <iterator>
 #include <vector>
 
@@ -524,6 +526,17 @@ static void computeOrientation(const Mat& image, vector<KeyPoint>& keypoints, co
     }
 }
 
+ORBextractor::Grid ORBextractor::CellGrid(int features, float imageRatio)
+{
+    // Cells hold about this many features each and are about square, so
+    // that the columns and rows have the proportions of the image.
+    constexpr float featuresPerCell = 5;
+
+    const int levelCols = std::max(1, static_cast<int>(std::sqrt(features*imageRatio/featuresPerCell)));
+    const int levelRows = std::max(1, static_cast<int>(levelCols/imageRatio));
+    return {levelCols, levelRows};
+}
+
 void ORBextractor::ComputeKeyPoints(vector<vector<KeyPoint> >& allKeypoints)
 {
 
@@ -535,8 +548,7 @@ void ORBextractor::ComputeKeyPoints(vector<vector<KeyPoint> >& allKeypoints)
     {
         const int nDesiredFeatures = mnFeaturesPerLevel[level];
 
-        const int levelCols = sqrt((float)nDesiredFeatures/(5*imageRatio));
-        const int levelRows = imageRatio*levelCols;
+        const auto [levelCols, levelRows] = CellGrid(nDesiredFeatures, imageRatio);
 
         const int minBorderX = EDGE_THRESHOLD;
         const int minBorderY = minBorderX;
