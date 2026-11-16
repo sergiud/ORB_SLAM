@@ -419,6 +419,45 @@ void loopClosingForgetsCandidatesOnReset()
                       loopClosing.mpMatchedKF ? "a" : "no"));
 }
 
+// Exposes the reset step of local mapping and its request.
+class ResetLocalMapping : public ORB_SLAM::LocalMapping
+{
+public:
+    using ORB_SLAM::LocalMapping::LocalMapping;
+    using ORB_SLAM::LocalMapping::ResetIfRequested;
+    using ORB_SLAM::LocalMapping::mbResetRequested;
+    using ORB_SLAM::LocalMapping::mMutexReset;
+};
+
+// Tracking inserts keyframes while local mapping resets, which
+// ThreadSanitizer checks for data races.
+void localMappingResetsWhileInserting()
+{
+    constexpr int resets = 1000;
+
+    ORB_SLAM::Map map;
+    ResetLocalMapping localMapping{&map};
+    const auto keyFrame = makeKeyFrame(map);
+
+    std::atomic<bool> done{false};
+
+    std::jthread tracking{[&localMapping, &keyFrame, &done] {
+        while (!done) {
+            localMapping.InsertKeyFrame(keyFrame.get());
+        }
+    }};
+
+    for (int i = 0; i < resets; ++i) {
+        {
+            std::scoped_lock lock{localMapping.mMutexReset};
+            localMapping.mbResetRequested = true;
+        }
+        localMapping.ResetIfRequested();
+    }
+
+    done = true;
+}
+
 // A reset request returns once the worker reset, also if the worker resets
 // right after the request. The test resets in a tight loop in place of the
 // worker thread, which makes that order likely.
@@ -497,6 +536,7 @@ int main()
     loopCorrectionWaitsForLocalMapping();
     bundleAdjustmentInterruptedConcurrently();
     loopClosingForgetsCandidatesOnReset();
+    localMappingResetsWhileInserting();
     loopClosingReturnsWhenIdle();
     localMappingResetReturns();
     loopClosingResetReturns();

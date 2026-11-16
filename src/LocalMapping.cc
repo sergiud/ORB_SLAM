@@ -722,7 +722,10 @@ void LocalMapping::ResetIfRequested()
     std::scoped_lock lock{mMutexReset};
     if(mbResetRequested)
     {
-        mlNewKeyFrames.clear();
+        {
+            std::scoped_lock lockNewKFs{mMutexNewKFs};
+            mlNewKeyFrames.clear();
+        }
         mlpRecentAddedMapPoints.clear();
         mbResetRequested=false;
         // Without keyframes left to process, local mapping is idle and
