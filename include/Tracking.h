@@ -42,6 +42,7 @@
 #include "ORB_SLAM_export.h"
 
 #include <atomic>
+#include <memory>
 #include <mutex>
 
 
@@ -152,15 +153,15 @@ protected:
     LoopClosing* mpLoopClosing{nullptr};
 
     //ORB
-    ORBextractor* mpORBextractor;
-    ORBextractor* mpIniORBextractor;
+    std::unique_ptr<ORBextractor> mpORBextractor;
+    std::unique_ptr<ORBextractor> mpIniORBextractor;
 
     //BoW
     ORBVocabulary* mpORBVocabulary;
     KeyFrameDatabase* mpKeyFrameDB{nullptr};
 
     // Initalization
-    Initializer* mpInitializer{nullptr};
+    std::unique_ptr<Initializer> mpInitializer;
 
     //Local Map
     KeyFrame* mpReferenceKF{nullptr};

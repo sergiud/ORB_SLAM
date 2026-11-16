@@ -90,12 +90,12 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
 
     assert(Score==1 || Score==0);
 
-    mpORBextractor = new ORBextractor(nFeatures,fScaleFactor,nLevels,Score,fastTh);
+    mpORBextractor = std::make_unique<ORBextractor>(nFeatures,fScaleFactor,nLevels,Score,fastTh);
 
 
     // ORB extractor for initialization
     // Initialization uses only points from the finest scale level
-    mpIniORBextractor = new ORBextractor(nFeatures*2,1.2,8,Score,fastTh);
+    mpIniORBextractor = std::make_unique<ORBextractor>(nFeatures*2,1.2,8,Score,fastTh);
 
     if(mbMotionModel)
     {
@@ -171,7 +171,7 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
 
     assert(Score==1 || Score==0);
 
-    mpORBextractor = new ORBextractor(nFeatures,fScaleFactor,nLevels,Score,fastTh);
+    mpORBextractor = std::make_unique<ORBextractor>(nFeatures,fScaleFactor,nLevels,Score,fastTh);
 
     cout << endl  << "ORB Extractor Parameters: " << endl;
     cout << "- Number of Features: " << nFeatures << endl;
@@ -186,7 +186,7 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
 
     // ORB extractor for initialization
     // Initialization uses only points from the finest scale level
-    mpIniORBextractor = new ORBextractor(nFeatures*2,1.2,8,Score,fastTh);
+    mpIniORBextractor = std::make_unique<ORBextractor>(nFeatures*2,1.2,8,Score,fastTh);
 
     int nMotion = fSettings["UseMotionModel"];
     mbMotionModel = nMotion;
@@ -235,7 +235,7 @@ void Tracking::Run()
 
 void Tracking::Track(const cv::Mat& im, double timestamp)
 {
-    ORBextractor* const extractor = mState==WORKING || mState==LOST ? mpORBextractor : mpIniORBextractor;
+    ORBextractor* const extractor = mState==WORKING || mState==LOST ? mpORBextractor.get() : mpIniORBextractor.get();
     mCurrentFrame = Frame(im, timestamp, extractor,mpORBVocabulary,mK,mDistCoef);
 
     // Depending on the state of the Tracker we perform different tasks
@@ -388,9 +388,9 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
     }
 
     if(mState==WORKING || mState==LOST)
-        mCurrentFrame = Frame(im,cv_ptr->header.stamp.toSec(),mpORBextractor,mpORBVocabulary,mK,mDistCoef);
+        mCurrentFrame = Frame(im,cv_ptr->header.stamp.toSec(),mpORBextractor.get(),mpORBVocabulary,mK,mDistCoef);
     else
-        mCurrentFrame = Frame(im,cv_ptr->header.stamp.toSec(),mpIniORBextractor,mpORBVocabulary,mK,mDistCoef);
+        mCurrentFrame = Frame(im,cv_ptr->header.stamp.toSec(),mpIniORBextractor.get(),mpORBVocabulary,mK,mDistCoef);
 
     // Depending on the state of the Tracker we perform different tasks
 
@@ -521,10 +521,7 @@ void Tracking::FirstInitialization()
         for(size_t i=0; i<mCurrentFrame.mvKeysUn.size(); i++)
             mvbPrevMatched[i]=mCurrentFrame.mvKeysUn[i].pt;
 
-        if(mpInitializer)
-            delete mpInitializer;
-
-        mpInitializer =  new Initializer(mCurrentFrame,1.0,200);
+        mpInitializer = std::make_unique<Initializer>(mCurrentFrame,1.0,200);
 
 
         mState = INITIALIZING;
