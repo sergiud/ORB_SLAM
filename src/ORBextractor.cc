@@ -493,9 +493,11 @@ ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int
     }
     mnFeaturesPerLevel[nlevels-1] = std::max(nfeatures - sumFeatures, 0);
 
+    // The table holds the coordinates of the points one after the other.
     const int npoints = 512;
-    const Point* pattern0 = (const Point*)bit_pattern_31_;
-    std::copy(pattern0, pattern0 + npoints, std::back_inserter(pattern));
+    pattern.reserve(npoints);
+    for(int i=0; i<npoints; i++)
+        pattern.emplace_back(bit_pattern_31_[2*i], bit_pattern_31_[2*i+1]);
 
     //This is for orientation
     // pre-compute the end of a row in a circular patch
