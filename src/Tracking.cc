@@ -593,7 +593,7 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
         //Create MapPoint. OpenCV 5 turns a point into a one-dimensional
         //array, whereas the camera centers it is compared with are 3x1
         //columns, which a vector converts into.
-        cv::Mat worldPos(cv::Vec3f(mvIniP3D[i]));
+        const cv::Mat worldPos = cv::Mat(cv::Vec3f(mvIniP3D[i]));
 
         MapPoint* pMP = new MapPoint(worldPos,pKFcur,mpMap);
 
