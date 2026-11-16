@@ -424,7 +424,7 @@ float Initializer::CheckFundamental(const cv::Mat &F21, vector<bool> &vbMatchesI
         else
             score += thScore - chiSquare1;
 
-        // Reprojection error in second image
+        // Reprojection error in first image
         // l1 =x2tF21=(a1,b1,c1)
 
         const float a1 = f11*u2+f21*v2+f31;

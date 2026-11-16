@@ -123,8 +123,8 @@ class ORB_SLAM_EXPORT PnPsolver {
 
   void estimate_R_and_t(double R[3][3], double t[3]);
 
-  void copy_R_and_t(const double R_dst[3][3], const double t_dst[3],
-		    double R_src[3][3], double t_src[3]);
+  void copy_R_and_t(const double R_src[3][3], const double t_src[3],
+		    double R_dst[3][3], double t_dst[3]);
 
   void mat_to_quat(const double R[3][3], double q[4]);
 
