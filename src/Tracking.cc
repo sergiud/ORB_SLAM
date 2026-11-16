@@ -853,7 +853,12 @@ void Tracking::CreateNewKeyFrame()
 {
     KeyFrame* pKF = new KeyFrame(mCurrentFrame,mpMap,mpKeyFrameDB);
 
-    mpLocalMapper->InsertKeyFrame(pKF);
+    // Local mapping refuses keyframes while loop closing stops it.
+    if (!mpLocalMapper->InsertKeyFrame(pKF))
+    {
+        delete pKF;
+        return;
+    }
 
     mnLastKeyFrameId = mCurrentFrame.mnId;
     mpLastKeyFrame = pKF;

@@ -16,6 +16,9 @@
 #include <opencv2/core.hpp>
 
 #include "Check.h"
+#include "Frames.h"
+#include "LocalMapping.h"
+#include "Map.h"
 #include "MapPoint.h"
 #include "Tracking.h"
 
@@ -97,6 +100,7 @@ void rejectsCameraMatrix(const cv::Mat& K, std::string_view expected)
           std::format("the error reads {:?}, got {:?}", expected, message));
 }
 
+
 // Only the keypoints of the current frame that see a map point and are no
 // outliers are tracked.
 void keyPointsOfInliers()
@@ -129,6 +133,48 @@ void keyPointsOfInliers()
     }
 }
 
+// Exposes how the tracker hands keyframes to local mapping.
+class KeyFrameTracking : public ORB_SLAM::Tracking
+{
+public:
+    using ORB_SLAM::Tracking::Tracking;
+    using ORB_SLAM::Tracking::CreateNewKeyFrame;
+    using ORB_SLAM::Tracking::mpLastKeyFrame;
+    using ORB_SLAM::Tracking::mnLastKeyFrameId;
+};
+
+// A keyframe that local mapping refuses while loop closing stops it is not
+// the last keyframe of the tracker, which would otherwise refer to a
+// keyframe nobody processes or owns.
+void dropsRefusedKeyFrame()
+{
+    constexpr unsigned lastKeyFrameId = 7;
+    constexpr long unsigned frameId = 9;
+
+    ORB_SLAM::Map map;
+    ORB_SLAM::LocalMapping localMapping{&map};
+    KeyFrameTracking tracking{nullptr, nullptr, nullptr, &map,
+                              cv::Mat1f::eye(3, 3), cv::Mat{},
+                              framesPerSecond, features, scaleFactor, levels,
+                              fastThreshold, harrisScore,
+                              /*useMotionModel=*/true};
+
+    tracking.SetLocalMapper(&localMapping);
+    tracking.mnLastKeyFrameId = lastKeyFrameId;
+
+    tracking.mCurrentFrame =
+        ORB_SLAM::tests::makeFrame(cv::Mat::eye(4, 4, CV_32F));
+    tracking.mCurrentFrame.mnId = frameId;
+
+    localMapping.RequestStop();
+    tracking.CreateNewKeyFrame();
+
+    check(tracking.mpLastKeyFrame == nullptr,
+          "a refused keyframe does not become the last keyframe");
+    check(tracking.mnLastKeyFrameId == lastKeyFrameId,
+          std::format("the last keyframe id stays {}, got {}", lastKeyFrameId,
+                      tracking.mnLastKeyFrameId));
+}
 } // namespace
 
 int main()
@@ -139,6 +185,7 @@ int main()
                         "camera intrinsic matrix must be 3x3, got 2x3");
     rejectsCameraMatrix(cv::Mat{}, "camera intrinsic matrix must be 3x3, got 0x0");
     keyPointsOfInliers();
+    dropsRefusedKeyFrame();
 
     return ORB_SLAM::tests::exitStatus();
 }

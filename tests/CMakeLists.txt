@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 foreach (_test sampling threads tracking)
-  add_executable (test_${_test} test_${_test}.cc Check.h)
+  add_executable (test_${_test} test_${_test}.cc Check.h Frames.h)
   target_compile_features (test_${_test} PRIVATE cxx_std_23)
   target_link_libraries (test_${_test} PRIVATE ORB_SLAM)
 endforeach (_test)

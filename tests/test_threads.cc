@@ -10,12 +10,23 @@
 #include <cstdlib>
 #include <format>
 #include <future>
+#include <memory>
+#include <mutex>
 #include <print>
+#include <set>
 #include <stop_token>
 #include <string_view>
 #include <thread>
+#include <tuple>
+
+#include <sys/resource.h>
+
+#include <opencv2/core.hpp>
 
 #include "Check.h"
+#include "Frame.h"
+#include "Frames.h"
+#include "KeyFrame.h"
 #include "KeyFrameDatabase.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
@@ -64,6 +75,24 @@ public:
     using Worker::Worker;
     using Worker::ResetIfRequested;
 };
+
+// Exposes whether keyframes wait in the queue of local mapping.
+class QueueingLocalMapping : public ORB_SLAM::LocalMapping
+{
+public:
+    using ORB_SLAM::LocalMapping::LocalMapping;
+    using ORB_SLAM::LocalMapping::CheckNewKeyFrames;
+};
+
+// Creates a keyframe at the origin from a frame without keypoints. Local
+// mapping only queues it, so it needs neither image nor vocabulary.
+std::unique_ptr<ORB_SLAM::KeyFrame> makeKeyFrame(ORB_SLAM::Map& map)
+{
+    ORB_SLAM::Frame frame =
+        ORB_SLAM::tests::makeFrame(cv::Mat::eye(4, 4, CV_32F));
+
+    return std::make_unique<ORB_SLAM::KeyFrame>(frame, &map, nullptr);
+}
 
 // Runs the worker in a thread, waits until it reaches the state the ready
 // predicate describes, requests a stop and checks that the worker returns
@@ -165,6 +194,140 @@ void localMappingResumesAfterRelease()
                       deadline));
 }
 
+// A release that comes before the worker stops withdraws the request, so the
+// worker keeps running instead of waiting for a second release.
+void localMappingStopsOnlyOnRequest()
+{
+    ORB_SLAM::Map map;
+    ORB_SLAM::LocalMapping localMapping{&map};
+
+    localMapping.RequestStop();
+    localMapping.Release();
+    localMapping.Stop();
+
+    check(!localMapping.isStopped(),
+          "local mapping released before it stops keeps running");
+}
+
+// Local mapping processes the keyframes it accepted before it stops, so that
+// none of them is left behind while loop closing changes the map.
+void localMappingStopsWithEmptyQueue()
+{
+    ORB_SLAM::Map map;
+    ORB_SLAM::LocalMapping localMapping{&map};
+    const auto keyFrame = makeKeyFrame(map);
+
+    check(localMapping.InsertKeyFrame(keyFrame.get()),
+          "local mapping accepts a keyframe while it runs");
+    localMapping.RequestStop();
+    localMapping.Stop();
+
+    check(!localMapping.isStopped(),
+          "local mapping with a queued keyframe does not stop");
+}
+
+// Local mapping refuses keyframes once a stop is requested, which leaves them
+// with the caller.
+void localMappingRefusesKeyFramesWhenStopping()
+{
+    ORB_SLAM::Map map;
+    QueueingLocalMapping localMapping{&map};
+    auto keyFrame = makeKeyFrame(map);
+
+    localMapping.RequestStop();
+
+    if (localMapping.InsertKeyFrame(keyFrame.get())) {
+        // Local mapping owns the keyframe it accepted.
+        std::ignore = keyFrame.release();
+        check(false, "local mapping refuses a keyframe while stopping");
+    }
+
+    check(!localMapping.CheckNewKeyFrames(),
+          "local mapping queues no keyframe while stopping");
+}
+
+// A release keeps the keyframes that local mapping accepted before the stop
+// request, rather than destroying keyframes the tracker still refers to.
+void localMappingKeepsKeyFramesOnRelease()
+{
+    ORB_SLAM::Map map;
+    QueueingLocalMapping localMapping{&map};
+    auto keyFrame = makeKeyFrame(map);
+
+    localMapping.InsertKeyFrame(keyFrame.get());
+    localMapping.RequestStop();
+    localMapping.Release();
+
+    const bool kept = localMapping.CheckNewKeyFrames();
+
+    if (!kept) {
+        // The release destroyed the keyframe already.
+        std::ignore = keyFrame.release();
+    }
+
+    check(kept, "local mapping keeps its queued keyframes on release");
+}
+
+// Waiting until local mapping stops returns only once the worker stopped, and
+// reports that it did.
+void waitsUntilLocalMappingStops()
+{
+    ORB_SLAM::Map map;
+    ORB_SLAM::LocalMapping localMapping{&map};
+
+    localMapping.RequestStop();
+
+    std::atomic<bool> returned{false};
+    std::atomic<bool> stopped{false};
+
+    std::jthread waiter{[&localMapping, &returned, &stopped](std::stop_token stopToken) {
+        stopped = localMapping.WaitUntilStopped(stopToken);
+        returned = true;
+    }};
+
+    // The check can only miss a wait that returns too early, it never fails
+    // a correct one.
+    std::this_thread::sleep_for(pauseObservation);
+    check(!returned, "the wait returns only once local mapping stopped");
+
+    localMapping.Stop();
+
+    check(waitUntil([&returned] { return returned.load(); }),
+          std::format("the wait returns within {} once local mapping stopped",
+                      deadline));
+    check(stopped, "the wait reports that local mapping stopped");
+}
+
+// Waiting until local mapping stops returns on a stop request of the waiting
+// thread, and reports that local mapping did not stop.
+void waitForLocalMappingEndsOnStopRequest()
+{
+    ORB_SLAM::Map map;
+    ORB_SLAM::LocalMapping localMapping{&map};
+
+    localMapping.RequestStop();
+
+    std::atomic<bool> returned{false};
+    std::atomic<bool> stopped{true};
+
+    std::jthread waiter{[&localMapping, &returned, &stopped](std::stop_token stopToken) {
+        stopped = localMapping.WaitUntilStopped(stopToken);
+        returned = true;
+    }};
+
+    waiter.request_stop();
+
+    if (!waitUntil([&returned] { return returned.load(); })) {
+        std::println(stderr,
+                     "FAIL: the wait still runs {} after a stop request",
+                     deadline);
+        // The waiter cannot be joined, so the test ends here.
+        std::_Exit(EXIT_FAILURE);
+    }
+
+    check(!stopped, "the wait reports that local mapping did not stop");
+}
+
 // A reset request returns once the worker reset, also if the worker resets
 // right after the request. The test resets in a tight loop in place of the
 // worker thread, which makes that order likely.
@@ -234,6 +397,12 @@ int main()
     localMappingReturnsWhenPaused();
     localMappingStaysPaused();
     localMappingResumesAfterRelease();
+    localMappingStopsOnlyOnRequest();
+    localMappingStopsWithEmptyQueue();
+    localMappingRefusesKeyFramesWhenStopping();
+    localMappingKeepsKeyFramesOnRelease();
+    waitsUntilLocalMappingStops();
+    waitForLocalMappingEndsOnStopRequest();
     loopClosingReturnsWhenIdle();
     localMappingResetReturns();
     loopClosingResetReturns();

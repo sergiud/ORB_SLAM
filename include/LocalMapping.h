@@ -51,15 +51,17 @@ public:
 
     void Run(std::stop_token stopToken);
 
-    void InsertKeyFrame(KeyFrame* pKF);
+    bool InsertKeyFrame(KeyFrame* pKF);
 
     // Thread Synch
     void RequestStop();
     void RequestReset();
 
-    void Stop();
+    bool Stop();
 
     void Release();
+
+    bool WaitUntilStopped(std::stop_token stopToken);
 
     bool isStopped();
 
@@ -109,6 +111,7 @@ protected:
     std::atomic<bool> mbStopped;
     std::atomic<bool> mbStopRequested;
     std::mutex mMutexStop;
+    std::condition_variable_any stoppedChanged;
 
     std::atomic<bool> mbAcceptKeyFrames;
     std::mutex mMutexAccept;

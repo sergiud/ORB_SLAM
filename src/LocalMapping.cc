@@ -96,9 +96,8 @@ void LocalMapping::Run(std::stop_token stopToken)
         }
 
         // Safe area to stop
-        if(stopRequested())
+        if(Stop())
         {
-            Stop();
             ros::Rate r2(1000);
             while(isStopped() && ros::ok())
             {
@@ -154,10 +153,8 @@ void LocalMapping::Run(std::stop_token stopToken)
         }
 
         // Safe area to stop
-        if(stopRequested())
+        if(Stop())
         {
-            Stop();
-
             {
                 std::unique_lock lock{processMutex};
                 processNext.wait(lock, stopToken, [this] { return !isStopped(); });
@@ -176,12 +173,20 @@ void LocalMapping::Run(std::stop_token stopToken)
 #endif // HAVE_ROS
 }
 
-void LocalMapping::InsertKeyFrame(KeyFrame *pKF)
+bool LocalMapping::InsertKeyFrame(KeyFrame *pKF)
 {
-    std::scoped_lock lock{mMutexNewKFs};
+    // Loop closing changes the map while local mapping is stopped, so the
+    // keyframes it needs processed before the stop are all queued once the
+    // stop is requested.
+    std::scoped_lock lock{mMutexStop, mMutexNewKFs};
+
+    if (mbStopRequested)
+        return false;
+
     mlNewKeyFrames.push_back(pKF);
     mbAbortBA=true;
     SetAcceptKeyFrames(false);
+    return true;
 }
 
 
@@ -548,10 +553,18 @@ void LocalMapping::RequestStop()
     processNext.notify_one();
 }
 
-void LocalMapping::Stop()
+bool LocalMapping::Stop()
 {
-    std::scoped_lock lock{mMutexStop};
+    // A release may withdraw the request after the worker saw it, so the
+    // request is checked together with setting the stop.
+    std::scoped_lock lock{mMutexStop, mMutexNewKFs};
+
+    if (!mbStopRequested || !mlNewKeyFrames.empty())
+        return false;
+
     mbStopped = true;
+    stoppedChanged.notify_all();
+    return true;
 }
 
 bool LocalMapping::isStopped()
@@ -572,9 +585,6 @@ void LocalMapping::Release()
         std::scoped_lock lock{mMutexStop};
         mbStopped = false;
         mbStopRequested = false;
-        for(list<KeyFrame*>::iterator lit = mlNewKeyFrames.begin(), lend=mlNewKeyFrames.end(); lit!=lend; lit++)
-            delete *lit;
-        mlNewKeyFrames.clear();
     }
 
     // The paused worker checks whether it is stopped while holding the
@@ -586,6 +596,12 @@ void LocalMapping::Release()
     }
 
     processNext.notify_one();
+}
+
+bool LocalMapping::WaitUntilStopped(std::stop_token stopToken)
+{
+    std::unique_lock lock{mMutexStop};
+    return stoppedChanged.wait(lock, stopToken, [this] { return mbStopped.load(); });
 }
 
 bool LocalMapping::AcceptKeyFrames()
