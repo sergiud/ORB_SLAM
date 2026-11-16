@@ -328,6 +328,36 @@ void waitForLocalMappingEndsOnStopRequest()
     check(!stopped, "the wait reports that local mapping did not stop");
 }
 
+// Exposes the loop correction of loop closing.
+class CorrectingLoopClosing : public ORB_SLAM::LoopClosing
+{
+public:
+    using ORB_SLAM::LoopClosing::LoopClosing;
+    using ORB_SLAM::LoopClosing::CorrectLoop;
+};
+
+// Loop closing changes the map only once local mapping stopped. Asked to end
+// before that, it gives up the correction and releases local mapping.
+void loopCorrectionWaitsForLocalMapping()
+{
+    ORB_SLAM::Map map;
+    ORB_SLAM::ORBVocabulary vocabulary;
+    ORB_SLAM::KeyFrameDatabase database{vocabulary};
+    ORB_SLAM::LocalMapping localMapping{&map};
+    CorrectingLoopClosing loopClosing{&map, &database, &vocabulary};
+
+    loopClosing.SetLocalMapper(&localMapping);
+
+    std::stop_source stopSource;
+    stopSource.request_stop();
+
+    loopClosing.CorrectLoop(stopSource.get_token());
+
+    check(!localMapping.stopRequested(),
+          "loop closing releases local mapping when it gives up the "
+          "correction");
+}
+
 // A reset request returns once the worker reset, also if the worker resets
 // right after the request. The test resets in a tight loop in place of the
 // worker thread, which makes that order likely.
@@ -403,6 +433,7 @@ int main()
     localMappingKeepsKeyFramesOnRelease();
     waitsUntilLocalMappingStops();
     waitForLocalMappingEndsOnStopRequest();
+    loopCorrectionWaitsForLocalMapping();
     loopClosingReturnsWhenIdle();
     localMappingResetReturns();
     loopClosingResetReturns();

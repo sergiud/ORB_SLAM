@@ -76,7 +76,7 @@ protected:
 
     void SearchAndFuse(KeyFrameAndPose &CorrectedPosesMap);
 
-    void CorrectLoop();
+    void CorrectLoop(std::stop_token stopToken);
 
     void ResetIfRequested();
     bool mbResetRequested;

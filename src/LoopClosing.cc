@@ -77,7 +77,7 @@ void LoopClosing::Run(std::stop_token stopToken)
                if(ComputeSim3())
                {
                    // Perform loop fusion and pose graph optimization
-                   CorrectLoop();
+                   CorrectLoop(stopToken);
                }
             }
         }
@@ -98,7 +98,7 @@ void LoopClosing::Run(std::stop_token stopToken)
                if(ComputeSim3())
                {
                    // Perform loop fusion and pose graph optimization
-                   CorrectLoop();
+                   CorrectLoop(stopToken);
                }
             }
         }
@@ -425,7 +425,7 @@ bool LoopClosing::ComputeSim3()
 
 }
 
-void LoopClosing::CorrectLoop()
+void LoopClosing::CorrectLoop(std::stop_token stopToken)
 {
     // Send a stop signal to Local Mapping
     // Avoid new keyframes are inserted while correcting the loop
@@ -437,6 +437,14 @@ void LoopClosing::CorrectLoop()
     while(ros::ok() && !mpLocalMapper->isStopped())
     {
         r.sleep();
+    }
+#else
+    if (!mpLocalMapper->WaitUntilStopped(stopToken))
+    {
+        // Loop closing ends before local mapping stopped, so the map stays
+        // as it is.
+        mpLocalMapper->Release();
+        return;
     }
 #endif // HAVE_ROS
 
