@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-foreach (_test keyframe mappoint matcher optimizer sampling threads tracking)
+foreach (_test frame keyframe mappoint matcher optimizer sampling threads
+    tracking)
   add_executable (test_${_test} test_${_test}.cc Check.h Frames.h Scene.h
     Storage.h)
   target_compile_features (test_${_test} PRIVATE cxx_std_23)
@@ -13,6 +14,7 @@ add_test (NAME ORB_SLAM/threads COMMAND test_threads)
 # A worker that ignores the stop request never returns.
 set_tests_properties (ORB_SLAM/threads PROPERTIES TIMEOUT 60)
 
+add_test (NAME ORB_SLAM/frame COMMAND test_frame)
 add_test (NAME ORB_SLAM/keyframe COMMAND test_keyframe)
 # Keyframes erased at the same time that deadlock never finish.
 set_tests_properties (ORB_SLAM/keyframe PROPERTIES TIMEOUT 120)

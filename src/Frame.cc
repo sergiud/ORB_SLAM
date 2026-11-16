@@ -66,9 +66,6 @@ Frame::Frame(const cv::Mat &im_, const double &timeStamp, ORBextractor* extracto
 
     N = mvKeys.size();
 
-    if(mvKeys.empty())
-        return;
-
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
 
     UndistortKeyPoints();
@@ -287,7 +284,7 @@ void Frame::ComputeBoW()
 
 void Frame::UndistortKeyPoints()
 {
-    if(mDistCoef.at<float>(0)==0.0)
+    if(mvKeys.empty() || mDistCoef.at<float>(0)==0.0)
     {
         mvKeysUn=mvKeys;
         return;
