@@ -521,6 +521,11 @@ int ORBmatcher::SearchByProjection(Frame &F1, Frame &F2, int windowSize, vector<
         cv::Mat x3Dw = pMP1->GetWorldPos();
         cv::Mat x3Dc2 = Rc2w*x3Dw+tc2w;
 
+        // A point behind the camera projects through its center into the
+        // image.
+        if(x3Dc2.at<float>(2)<=0.0f)
+            continue;
+
         const float xc2 = x3Dc2.at<float>(0);
         const float yc2 = x3Dc2.at<float>(1);
         const float invzc2 = 1.0/x3Dc2.at<float>(2);
@@ -1472,6 +1477,11 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
                 cv::Mat x3Dw = pMP->GetWorldPos();
                 cv::Mat x3Dc = Rcw*x3Dw+tcw;
 
+                // A point behind the camera projects through its center into
+                // the image.
+                if(x3Dc.at<float>(2)<=0.0f)
+                    continue;
+
                 const float xc = x3Dc.at<float>(0);
                 const float yc = x3Dc.at<float>(1);
                 const float invzc = 1.0/x3Dc.at<float>(2);
@@ -1581,6 +1591,11 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
                 //Project
                 cv::Mat x3Dw = pMP->GetWorldPos();
                 cv::Mat x3Dc = Rcw*x3Dw+tcw;
+
+                // A point behind the camera projects through its center into
+                // the image.
+                if(x3Dc.at<float>(2)<=0.0f)
+                    continue;
 
                 const float xc = x3Dc.at<float>(0);
                 const float yc = x3Dc.at<float>(1);
