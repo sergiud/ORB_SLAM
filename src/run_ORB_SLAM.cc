@@ -138,31 +138,31 @@ int main(int argc, char **argv)
 
     po::variables_map vars;
 
-    po::store(po::command_line_parser(argc, argv)
-        .options(opts)
-        .positional(pdesc)
-        .run(), vars);
-
-    if (vars.empty()) {
-        usage(opts);
-        return EXIT_FAILURE;
-    }
-
-    if (vars.count("help")) {
-        help(opts);
-        return EXIT_SUCCESS;
-    }
-
-    if (vars.count("version")) {
-        version();
-        return EXIT_SUCCESS;
-    }
-
     try {
+        po::store(po::command_line_parser(argc, argv)
+            .options(opts)
+            .positional(pdesc)
+            .run(), vars);
+
+        if (vars.empty()) {
+            usage(opts);
+            return EXIT_FAILURE;
+        }
+
+        if (vars.count("help")) {
+            help(opts);
+            return EXIT_SUCCESS;
+        }
+
+        if (vars.count("version")) {
+            version();
+            return EXIT_SUCCESS;
+        }
+
         po::notify(vars);
     }
-    catch (std::exception& e) {
-        std::cerr << "error: " << e.what() << std::endl;
+    catch (const po::error& e) {
+        std::println(stderr, "error: {}", e.what());
         return EXIT_FAILURE;
     }
 

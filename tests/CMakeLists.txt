@@ -27,6 +27,25 @@ set_tests_properties (ORB_SLAM/cli/path-with-spaces PROPERTIES
   PASS_REGULAR_EXPRESSION "reading vocabulary \"dir with spaces/vocabulary.txt\""
   TIMEOUT 60)
 
+# An invalid command line ends the program with an error message, not an
+# uncaught exception.
+foreach (_case
+    "invalid-value|--features|abc|the argument \\('abc'\\) for option '--features' is invalid"
+    "repeated-path|--vocabulary|first.txt|--vocabulary|second.txt|option '--vocabulary' cannot be specified more than once")
+  string (REPLACE "|" ";" _fields "${_case}")
+  list (POP_FRONT _fields _name)
+  list (POP_BACK _fields _error)
+  string (REPLACE ";" "|" _arguments "${_fields}")
+
+  add_test (NAME ORB_SLAM/cli/${_name}
+    COMMAND ${CMAKE_COMMAND}
+      -DPROGRAM=$<TARGET_FILE:run_ORB_SLAM>
+      "-DARGUMENTS=${_arguments}"
+      "-DERROR=^error: ${_error}"
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/ExpectError.cmake)
+  set_tests_properties (ORB_SLAM/cli/${_name} PROPERTIES TIMEOUT 60)
+endforeach (_case)
+
 add_executable (make_fixtures make_fixtures.cc)
 target_compile_features (make_fixtures PRIVATE cxx_std_23)
 target_link_libraries (make_fixtures PRIVATE opencv_core opencv_videoio)
