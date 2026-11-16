@@ -58,7 +58,7 @@ endforeach (_case)
 
 add_executable (make_fixtures make_fixtures.cc)
 target_compile_features (make_fixtures PRIVATE cxx_std_23)
-target_link_libraries (make_fixtures PRIVATE opencv_core opencv_videoio)
+target_link_libraries (make_fixtures PRIVATE ORB_SLAM opencv_core opencv_videoio)
 
 add_test (NAME ORB_SLAM/cli/fixtures COMMAND make_fixtures
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -69,10 +69,34 @@ set_tests_properties (ORB_SLAM/cli/fixtures PROPERTIES
 # ignores the request keeps the program from exiting.
 add_test (NAME ORB_SLAM/cli/stops-at-end
   COMMAND run_ORB_SLAM --no-video
-    --vocabulary missing.txt
+    --vocabulary vocabulary.txt
     --calibration calibration.yml
     --input black.avi
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set_tests_properties (ORB_SLAM/cli/stops-at-end PROPERTIES
   FIXTURES_REQUIRED black_video
   TIMEOUT 120)
+
+# Inputs that cannot be read end the program with an error that names them,
+# rather than with a crash or a run on an empty vocabulary.
+foreach (_case
+    "missing-vocabulary|--vocabulary|missing.txt|--calibration|calibration.yml|--input|black.avi|cannot read vocabulary \"missing.txt\""
+    "missing-calibration|--vocabulary|vocabulary.txt|--calibration|missing.yml|--input|black.avi|cannot read calibration \"missing.yml\""
+    "uncalibrated|--vocabulary|vocabulary.txt|--calibration|uncalibrated.yml|--input|black.avi|camera intrinsic matrix must be 3x3, got 0x0")
+  string (REPLACE "|" ";" _fields "${_case}")
+  list (POP_FRONT _fields _name)
+  list (POP_BACK _fields _error)
+  string (REPLACE ";" "|" _arguments "${_fields}")
+
+  add_test (NAME ORB_SLAM/cli/${_name}
+    COMMAND ${CMAKE_COMMAND}
+      -DPROGRAM=$<TARGET_FILE:run_ORB_SLAM>
+      "-DARGUMENTS=--no-video|${_arguments}"
+      # OpenCV and DBoW2 report the failure on their own first.
+      "-DERROR=error: ${_error}"
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/ExpectError.cmake
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  set_tests_properties (ORB_SLAM/cli/${_name} PROPERTIES
+    FIXTURES_REQUIRED black_video
+    TIMEOUT 60)
+endforeach (_case)

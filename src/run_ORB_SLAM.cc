@@ -23,7 +23,9 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <optional>
 #include <print>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -177,9 +179,15 @@ int main(int argc, char **argv)
 
     if (!vocabFileName.empty()) {
         std::print("reading vocabulary \"{}\"...", vocabFileName.string());
-        vocabulary.loadFromTextFile(vocabFileName.string());
 
-        std::cout << ' ' << "done" << std::endl;
+        if (!vocabulary.loadFromTextFile(vocabFileName.string())) {
+            std::println(" failed");
+            std::println(stderr, "error: cannot read vocabulary \"{}\"",
+                         vocabFileName.string());
+            return EXIT_FAILURE;
+        }
+
+        std::println(" done");
     }
 
     // Create KeyFrame database
@@ -195,6 +203,12 @@ int main(int argc, char **argv)
 
     cv::FileStorage calibFs(calibFileName.string(), cv::FileStorage::READ);
 
+    if (!calibFs.isOpened()) {
+        std::println(stderr, "error: cannot read calibration \"{}\"",
+                     calibFileName.string());
+        return EXIT_FAILURE;
+    }
+
     cv::Mat K;
     cv::Mat distCoeffs;
 
@@ -209,8 +223,18 @@ int main(int argc, char **argv)
     }
 
     // Initialize the tracking thread and launch
-    ORB_SLAM::Tracking tracker(&vocabulary, &FramePub, &MapPub, &world, cv::Mat1f(K), cv::Mat1f(distCoeffs), capture.get(cv::CAP_PROP_FPS),
+    std::optional<ORB_SLAM::Tracking> trackerStorage;
+
+    try {
+        trackerStorage.emplace(&vocabulary, &FramePub, &MapPub, &world, cv::Mat1f(K), cv::Mat1f(distCoeffs), capture.get(cv::CAP_PROP_FPS),
             features, scale, levels, fastTh, score, vars.count("no-motion-model") == 0);
+    }
+    catch (const std::invalid_argument& e) {
+        std::println(stderr, "error: {}", e.what());
+        return EXIT_FAILURE;
+    }
+
+    ORB_SLAM::Tracking& tracker = *trackerStorage;
 
     tracker.SetKeyFrameDatabase(&database);
 
