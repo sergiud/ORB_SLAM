@@ -5,8 +5,13 @@
 // Tests of the tracking front end that need no images.
 
 #include <cstddef>
+#include <filesystem>
 #include <format>
+#include <fstream>
 #include <iostream>
+#include <memory>
+#include <new>
+#include <print>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -20,6 +25,7 @@
 #include "LocalMapping.h"
 #include "Map.h"
 #include "MapPoint.h"
+#include "Storage.h"
 #include "Tracking.h"
 
 namespace {
@@ -33,21 +39,22 @@ constexpr int levels = 8;
 constexpr int fastThreshold = 20;
 constexpr int harrisScore = 1;
 
-// Redirects std::clog into a string while it lives.
-class ClogCapture
+// Redirects a standard stream into a string while it lives.
+template<std::ostream& Stream>
+class StreamCapture
 {
 public:
-    ClogCapture()
-        : previous_{std::clog.rdbuf(text_.rdbuf())}
+    StreamCapture()
+        : previous_{Stream.rdbuf(text_.rdbuf())}
     {
     }
 
-    ClogCapture(const ClogCapture&) = delete;
-    ClogCapture& operator=(const ClogCapture&) = delete;
+    StreamCapture(const StreamCapture&) = delete;
+    StreamCapture& operator=(const StreamCapture&) = delete;
 
-    ~ClogCapture()
+    ~StreamCapture()
     {
-        std::clog.rdbuf(previous_);
+        Stream.rdbuf(previous_);
     }
 
     [[nodiscard]] std::string text() const
@@ -59,6 +66,9 @@ private:
     std::ostringstream text_;
     std::streambuf* previous_;
 };
+
+using ClogCapture = StreamCapture<std::clog>;
+using CoutCapture = StreamCapture<std::cout>;
 
 // Creates a tracker for the camera matrix without vocabulary, publishers
 // and map, which construction does not use.
@@ -175,6 +185,70 @@ void dropsRefusedKeyFrame()
           std::format("the last keyframe id stays {}, got {}", lastKeyFrameId,
                       tracking.mnLastKeyFrameId));
 }
+
+// Exposes the collaborators and the state a tracker starts with.
+class InitialTracking : public ORB_SLAM::Tracking
+{
+public:
+    using ORB_SLAM::Tracking::Tracking;
+    using ORB_SLAM::Tracking::mpInitializer;
+    using ORB_SLAM::Tracking::mpKeyFrameDB;
+    using ORB_SLAM::Tracking::mpLastKeyFrame;
+    using ORB_SLAM::Tracking::mpLocalMapper;
+    using ORB_SLAM::Tracking::mpLoopClosing;
+    using ORB_SLAM::Tracking::mpReferenceKF;
+};
+
+// A tracker constructed from a settings file starts without collaborators
+// and keyframes. The tracker is constructed in storage filled with a pattern
+// other than zero, so that a pointer the constructor leaves uninitialized
+// shows.
+void settingsTrackerStartsEmpty()
+{
+    const std::filesystem::path settings =
+        std::filesystem::temp_directory_path() / "orb_slam_test_settings.yml";
+    {
+        std::ofstream stream{settings};
+        std::print(stream,
+                   "%YAML:1.0\n"
+                   "Camera.fx: 500.0\n"
+                   "Camera.fy: 500.0\n"
+                   "Camera.cx: 320.0\n"
+                   "Camera.cy: 240.0\n"
+                   "ORBextractor.nFeatures: {}\n"
+                   "ORBextractor.scaleFactor: {}\n"
+                   "ORBextractor.nLevels: {}\n"
+                   "ORBextractor.fastTh: {}\n"
+                   "ORBextractor.nScoreType: {}\n",
+                   features, scaleFactor, levels, fastThreshold, harrisScore);
+    }
+
+    alignas(InitialTracking) std::byte storage[sizeof(InitialTracking)];
+    ORB_SLAM::tests::fillWithPattern(storage);
+
+    InitialTracking* const tracking = [&storage, &settings] {
+        // The constructor reports the settings on the standard output.
+        CoutCapture capture;
+        return new (storage)
+            InitialTracking{nullptr, nullptr, nullptr, nullptr, settings.string()};
+    }();
+
+    check(tracking->mpInitializer == nullptr,
+          "the tracker starts without initializer");
+    check(tracking->mpLocalMapper == nullptr,
+          "the tracker starts without local mapping");
+    check(tracking->mpLoopClosing == nullptr,
+          "the tracker starts without loop closing");
+    check(tracking->mpKeyFrameDB == nullptr,
+          "the tracker starts without keyframe database");
+    check(tracking->mpLastKeyFrame == nullptr,
+          "the tracker starts without last keyframe");
+    check(tracking->mpReferenceKF == nullptr,
+          "the tracker starts without reference keyframe");
+
+    std::destroy_at(tracking);
+    std::filesystem::remove(settings);
+}
 } // namespace
 
 int main()
@@ -186,6 +260,7 @@ int main()
     rejectsCameraMatrix(cv::Mat{}, "camera intrinsic matrix must be 3x3, got 0x0");
     keyPointsOfInliers();
     dropsRefusedKeyFrame();
+    settingsTrackerStartsEmpty();
 
     return ORB_SLAM::tests::exitStatus();
 }

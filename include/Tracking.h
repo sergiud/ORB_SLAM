@@ -141,8 +141,8 @@ protected:
 
 
     //Other Thread Pointers
-    LocalMapping* mpLocalMapper;
-    LoopClosing* mpLoopClosing;
+    LocalMapping* mpLocalMapper{nullptr};
+    LoopClosing* mpLoopClosing{nullptr};
 
     //ORB
     ORBextractor* mpORBextractor;
@@ -150,13 +150,13 @@ protected:
 
     //BoW
     ORBVocabulary* mpORBVocabulary;
-    KeyFrameDatabase* mpKeyFrameDB;
+    KeyFrameDatabase* mpKeyFrameDB{nullptr};
 
     // Initalization
-    Initializer* mpInitializer;
+    Initializer* mpInitializer{nullptr};
 
     //Local Map
-    KeyFrame* mpReferenceKF;
+    KeyFrame* mpReferenceKF{nullptr};
     std::vector<KeyFrame*> mvpLocalKeyFrames;
     std::vector<MapPoint*> mvpLocalMapPoints;
 
@@ -179,7 +179,7 @@ protected:
     int mnMatchesInliers;
 
     //Last Frame, KeyFrame and Relocalisation Info
-    KeyFrame* mpLastKeyFrame;
+    KeyFrame* mpLastKeyFrame{nullptr};
     Frame mLastFrame;
     unsigned int mnLastKeyFrameId;
     unsigned int mnLastRelocFrameId;
