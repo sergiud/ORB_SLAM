@@ -696,6 +696,10 @@ void LocalMapping::ResetIfRequested()
         mlNewKeyFrames.clear();
         mlpRecentAddedMapPoints.clear();
         mbResetRequested=false;
+        // Without keyframes left to process, local mapping is idle and
+        // accepts the next one, also if a reset discarded one it had not
+        // processed yet.
+        SetAcceptKeyFrames(true);
         resetDone.notify_one();
     }
 }
