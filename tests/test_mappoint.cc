@@ -88,11 +88,66 @@ void scaleInvarianceFollowsPyramid()
                       single));
 }
 
+// The normal of a point is the unit direction from which the keyframes see
+// it, which the tracker compares with a viewing direction as a cosine.
+void normalIsUnitLength()
+{
+    constexpr float spread = 4;
+    constexpr float distance = 4;
+
+    ORB_SLAM::tests::Scene scene;
+    const std::vector<cv::KeyPoint> keyPoint{cv::KeyPoint{0, 0, 1}};
+    std::vector<ORB_SLAM::KeyFrame*> keyFrames;
+
+    for (const float x : {-spread, spread}) {
+        cv::Mat Tcw = cv::Mat::eye(4, 4, CV_32F);
+        Tcw.at<float>(0, 3) = -x;
+        keyFrames.push_back(scene.addKeyFrame(Tcw, cv::Mat::eye(3, 3, CV_32F),
+                                              keyPoint, pyramid));
+    }
+
+    ORB_SLAM::MapPoint* const point = scene.addMapPoint(
+        {0, 0, distance}, {{keyFrames[0], 0}, {keyFrames[1], 0}});
+    point->UpdateNormalAndDepth();
+
+    const double length = cv::norm(point->GetNormal());
+
+    check(near(static_cast<float>(length), 1),
+          std::format("the normal has unit length, got {}", length));
+}
+
+// Keyframes that see a point from opposite sides give it no direction, so
+// its normal stays finite rather than dividing by zero.
+void opposedViewsKeepNormalFinite()
+{
+    constexpr float distance = 4;
+
+    ORB_SLAM::tests::Scene scene;
+    const std::vector<cv::KeyPoint> keyPoint{cv::KeyPoint{0, 0, 1}};
+    std::vector<ORB_SLAM::KeyFrame*> keyFrames;
+
+    for (const float z : {-distance, distance}) {
+        cv::Mat Tcw = cv::Mat::eye(4, 4, CV_32F);
+        Tcw.at<float>(2, 3) = -z;
+        keyFrames.push_back(scene.addKeyFrame(Tcw, cv::Mat::eye(3, 3, CV_32F),
+                                              keyPoint, pyramid));
+    }
+
+    ORB_SLAM::MapPoint* const point = scene.addMapPoint(
+        {0, 0, 0}, {{keyFrames[0], 0}, {keyFrames[1], 0}});
+    point->UpdateNormalAndDepth();
+
+    check(cv::checkRange(point->GetNormal()),
+          "the normal of a point seen from opposite sides is finite");
+}
+
 } // namespace
 
 int main()
 {
     scaleInvarianceFollowsPyramid();
+    normalIsUnitLength();
+    opposedViewsKeepNormalFinite();
 
     return ORB_SLAM::tests::exitStatus();
 }

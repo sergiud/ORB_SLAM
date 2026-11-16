@@ -293,14 +293,12 @@ void MapPoint::UpdateNormalAndDepth()
     }
 
     cv::Mat normal = cv::Mat::zeros(3,1,CV_32F);
-    int n=0;
     for(map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
     {
         KeyFrame* pKF = mit->first;
         cv::Mat Owi = pKF->GetCameraCenter();
-        cv::Mat normali = mWorldPos - Owi;
+        cv::Mat normali = Pos - Owi;
         normal = normal + normali/cv::norm(normali);
-        n++;
     }
 
     cv::Mat PC = Pos - pRefKF->GetCameraCenter();
@@ -315,7 +313,10 @@ void MapPoint::UpdateNormalAndDepth()
         // coarsest level, and the finest level detects it farthest away.
         mfMaxDistance = dist*levelScaleFactor;
         mfMinDistance = mfMaxDistance/pRefKF->GetScaleFactor(nLevels-1);
-        mNormalVector = normal/n;
+        // Viewing directions that cancel each other have no mean direction.
+        const double length = cv::norm(normal);
+        if(length>0)
+            mNormalVector = normal/length;
     }
 }
 
