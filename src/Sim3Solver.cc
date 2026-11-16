@@ -259,17 +259,16 @@ void Sim3Solver::computeT(cv::Mat &P1, cv::Mat &P2)
 
     cv::eigen(N,eval,evec); //evec[0] is the quaternion of the desired rotation
 
-    cv::Mat vec(1,3,evec.type());
-    (evec.row(0).colRange(1,4)).copyTo(vec); //extract imaginary part of the quaternion (sin*axis)
+    // The rotation of the unit quaternion (w, x, y, z), which unlike an
+    // angle and axis has no singularity at the identity.
+    const float w = evec.at<float>(0,0);
+    const float x = evec.at<float>(0,1);
+    const float y = evec.at<float>(0,2);
+    const float z = evec.at<float>(0,3);
 
-    // Rotation angle. sin is the norm of the imaginary part, cos is the real part
-    double ang=atan2(norm(vec),evec.at<float>(0,0));
-
-    vec = 2*ang*vec/norm(vec); //Angle-axis representation. quaternion angle is the half
-
-    mR12i.create(3,3,P1.type());
-
-    cv::Rodrigues(vec,mR12i); // computes the rotation matrix from angle-axis
+    mR12i = cv::Mat_<float>({3,3}, {1-2*(y*y+z*z),   2*(x*y-w*z),   2*(x*z+w*y),
+                                      2*(x*y+w*z), 1-2*(x*x+z*z),   2*(y*z-w*x),
+                                      2*(x*z-w*y),   2*(y*z+w*x), 1-2*(x*x+y*y)});
 
     // Step 5: Rotate set 2
 

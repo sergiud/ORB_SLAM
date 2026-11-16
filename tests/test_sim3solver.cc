@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <format>
+#include <numbers>
 #include <vector>
 
 #include <opencv2/core.hpp>
@@ -93,10 +94,83 @@ void keepsMatchesWithinThreshold()
                       squaredError));
 }
 
+// Points that coincide in both keyframes are related by the identity, whose
+// rotation has no axis.
+void identityFromCoincidingPoints()
+{
+    constexpr double tolerance = 1e-5;
+
+    ORB_SLAM::tests::Scene scene;
+    ORB_SLAM::KeyFrame* const first =
+        scene.addKeyFrame(cv::Mat::eye(4, 4, CV_32F), cameraMatrix());
+    ORB_SLAM::KeyFrame* const second =
+        scene.addKeyFrame(cv::Mat::eye(4, 4, CV_32F), cameraMatrix());
+    CheckingSim3Solver solver{first, second, {}};
+
+    // One point in each column.
+    cv::Mat points = cv::Mat_<float>({3, 3}, {-1, 0.5F, 1,
+                                              0.5F, -0.5F, 1,
+                                              4, 4.5F, 5});
+    cv::Mat same = points.clone();
+    solver.computeT(points, same);
+
+    const cv::Mat rotation = solver.mR12i;
+    const bool finite = cv::checkRange(rotation);
+    const double deviation =
+        finite ? cv::norm(rotation, cv::Mat::eye(3, 3, rotation.type())) : 0;
+
+    check(finite && deviation <= tolerance,
+          std::format("coinciding points have the identity rotation, got a "
+                      "{} rotation {} off",
+                      finite ? "finite" : "non-finite", deviation));
+}
+
+// The rotation maps the points of the second keyframe onto those of the
+// first.
+void rotationMapsSecondOntoFirst()
+{
+    constexpr double tolerance = 1e-4;
+    constexpr double angle = std::numbers::pi / 6;
+
+    ORB_SLAM::tests::Scene scene;
+    ORB_SLAM::KeyFrame* const first =
+        scene.addKeyFrame(cv::Mat::eye(4, 4, CV_32F), cameraMatrix());
+    ORB_SLAM::KeyFrame* const second =
+        scene.addKeyFrame(cv::Mat::eye(4, 4, CV_32F), cameraMatrix());
+    CheckingSim3Solver solver{first, second, {}};
+
+    // Rotations about two axes compose into one about an axis off every
+    // coordinate axis, so that every term of the rotation matters.
+    const auto c = static_cast<float>(std::cos(angle));
+    const auto s = static_cast<float>(std::sin(angle));
+    const cv::Mat aboutZ = cv::Mat_<float>({3, 3}, {c, -s, 0,
+                                                    s, c, 0,
+                                                    0, 0, 1});
+    const cv::Mat aboutX = cv::Mat_<float>({3, 3}, {1, 0, 0,
+                                                    0, c, -s,
+                                                    0, s, c});
+    const cv::Mat rotation = aboutX * aboutZ;
+    const cv::Mat secondPoints = cv::Mat_<float>({3, 3}, {-1, 0.5F, 1,
+                                                          0.5F, -0.5F, 1,
+                                                          4, 4.5F, 5});
+    cv::Mat firstPoints = rotation * secondPoints;
+    cv::Mat secondCopy = secondPoints.clone();
+    solver.computeT(firstPoints, secondCopy);
+
+    const double deviation = cv::norm(solver.mR12i, rotation);
+
+    check(deviation <= tolerance,
+          std::format("the rotation maps the second points onto the first, "
+                      "got one {} off",
+                      deviation));
+}
+
 } // namespace
 
 int main()
 {
+    identityFromCoincidingPoints();
+    rotationMapsSecondOntoFirst();
     keepsMatchesWithinThreshold();
 
     return ORB_SLAM::tests::exitStatus();
