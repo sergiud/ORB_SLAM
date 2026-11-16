@@ -259,7 +259,9 @@ void MapPoint::ComputeDistinctiveDescriptors()
 cv::Mat MapPoint::GetDescriptor()
 {
     std::scoped_lock lock{mMutexFeatures};
-    return mDescriptor.clone();
+    // A new descriptor replaces the matrix rather than writing into it, so
+    // the matrix is shared rather than copied.
+    return mDescriptor;
 }
 
 int MapPoint::GetIndexInKeyFrame(KeyFrame *pKF)

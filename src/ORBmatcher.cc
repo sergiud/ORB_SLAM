@@ -203,7 +203,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
                     if(vpMapPointMatches[realIdxF])
                         continue;
 
-                    cv::Mat dF = F.mDescriptors.row(realIdxF).clone();
+                    const cv::Mat dF = F.mDescriptors.row(realIdxF);
 
                     const int dist =  DescriptorDistance(dKF,dF);
 

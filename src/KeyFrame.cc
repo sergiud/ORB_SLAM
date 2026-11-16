@@ -301,7 +301,9 @@ int KeyFrame::GetKeyPointScaleLevel(const size_t &idx) const
 
 cv::Mat KeyFrame::GetDescriptor(const size_t &idx)
 {
-    return mDescriptors.row(idx).clone();
+    // The descriptors never change after construction, so the row is
+    // shared rather than copied.
+    return mDescriptors.row(idx);
 }
 
 cv::Mat KeyFrame::GetDescriptors()
