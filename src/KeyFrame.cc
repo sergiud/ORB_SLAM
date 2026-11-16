@@ -695,7 +695,7 @@ bool KeyFrame::IsInImage(const float &x, const float &y) const
     return (x>=mnMinX && x<mnMaxX && y>=mnMinY && y<mnMaxY);
 }
 
-float KeyFrame::ComputeSceneMedianDepth(int q)
+std::optional<float> KeyFrame::ComputeSceneMedianDepth(int q)
 {
     vector<MapPoint*> vpMapPoints;
     cv::Mat Tcw_;
@@ -707,20 +707,23 @@ float KeyFrame::ComputeSceneMedianDepth(int q)
     }
 
     vector<float> vDepths;
-    vDepths.reserve(mvpMapPoints.size());
+    vDepths.reserve(vpMapPoints.size());
     cv::Mat Rcw2 = Tcw_.row(2).colRange(0,3);
     Rcw2 = Rcw2.t();
     float zcw = Tcw_.at<float>(2,3);
-    for(size_t i=0; i<mvpMapPoints.size(); i++)
+    for(size_t i=0; i<vpMapPoints.size(); i++)
     {
-        if(mvpMapPoints[i])
+        if(vpMapPoints[i])
         {
-            MapPoint* pMP = mvpMapPoints[i];
+            MapPoint* pMP = vpMapPoints[i];
             cv::Mat x3Dw = pMP->GetWorldPos();
             float z = Rcw2.dot(x3Dw)+zcw;
             vDepths.push_back(z);
         }
     }
+
+    if(vDepths.empty())
+        return std::nullopt;
 
     sort(vDepths.begin(),vDepths.end());
 

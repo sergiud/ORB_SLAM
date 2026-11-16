@@ -39,6 +39,7 @@
 #include<fstream>
 #include <format>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <ranges>
 #include <stdexcept>
@@ -629,15 +630,16 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     Optimizer::GlobalBundleAdjustemnt(mpMap,20);
 
     // Set median depth to 1
-    float medianDepth = pKFini->ComputeSceneMedianDepth(2);
-    float invMedianDepth = 1.0f/medianDepth;
+    const std::optional<float> medianDepth = pKFini->ComputeSceneMedianDepth(2);
 
-    if(medianDepth<0 || pKFcur->TrackedMapPoints()<100)
+    if(!medianDepth || *medianDepth<0 || pKFcur->TrackedMapPoints()<100)
     {
         std::println(std::clog, "wrong initialization, reseting...");
         Reset();
         return;
     }
+
+    const float invMedianDepth = 1.0f/ *medianDepth;
 
     // Scale initial baseline
     cv::Mat Tc2w = pKFcur->GetPose();

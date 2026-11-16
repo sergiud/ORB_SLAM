@@ -33,6 +33,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <optional>
 
 
 namespace ORB_SLAM
@@ -136,7 +137,12 @@ public:
         return mnScaleLevels;}
 
     // Median MapPoint depth
-    float ComputeSceneMedianDepth(int q = 2);
+    /**
+     * Returns the depth below which a @p q th of the map points the keyframe
+     * sees lie, the median for 2, or nothing for a keyframe without map
+     * points.
+     */
+    std::optional<float> ComputeSceneMedianDepth(int q = 2);
 
 public:
     static long unsigned int nNextId;

@@ -25,6 +25,7 @@
 
 #include <chrono>
 #include <mutex>
+#include <optional>
 #include <stop_token>
 
 #ifdef HAVE_ROS
@@ -312,8 +313,13 @@ void LocalMapping::CreateNewMapPoints()
         cv::Mat Ow2 = pKF2->GetCameraCenter();
         cv::Mat vBaseline = Ow2-Ow1;
         const float baseline = cv::norm(vBaseline);
-        const float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
-        const float ratioBaselineDepth = baseline/medianDepthKF2;
+        const std::optional<float> medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
+
+        // A keyframe without map points has no depth to compare with.
+        if(!medianDepthKF2)
+            continue;
+
+        const float ratioBaselineDepth = baseline/ *medianDepthKF2;
 
         if(ratioBaselineDepth<0.01)
             continue;

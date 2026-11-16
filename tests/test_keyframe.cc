@@ -337,6 +337,33 @@ void startsWithoutQueries()
     std::destroy_at(keyFrame);
 }
 
+// The median depth is that of the middle map point a keyframe sees, and a
+// keyframe without map points has none.
+void medianDepthOfMapPoints()
+{
+    ORB_SLAM::tests::Scene scene;
+    addKeyFrame(scene);
+    const std::vector<cv::KeyPoint> keyPoints(3, cv::KeyPoint{0, 0, 1});
+    ORB_SLAM::KeyFrame* const empty = scene.addKeyFrame(
+        cv::Mat::eye(4, 4, CV_32F), cv::Mat::eye(3, 3, CV_32F), keyPoints);
+    ORB_SLAM::KeyFrame* const seeing = scene.addKeyFrame(
+        cv::Mat::eye(4, 4, CV_32F), cv::Mat::eye(3, 3, CV_32F), keyPoints);
+
+    for (std::size_t i = 0; i < keyPoints.size(); ++i) {
+        scene.addMapPoint({0, 0, static_cast<float>(i + 1)}, {{seeing, i}});
+    }
+
+    const std::optional<float> none = empty->ComputeSceneMedianDepth();
+    const std::optional<float> median = seeing->ComputeSceneMedianDepth();
+
+    check(!none.has_value(),
+          std::format("a keyframe without map points has no median depth, got "
+                      "{}",
+                      none.value_or(0)));
+    check(median == 2.0F, std::format("the median depth is 2, got {}",
+                                      median.value_or(0)));
+}
+
 } // namespace
 
 int main()
@@ -347,6 +374,7 @@ int main()
     mapPointsReplacedConcurrently();
     relocalisationIgnoresUncomparedNeighbors();
     startsWithoutQueries();
+    medianDepthOfMapPoints();
 
     return ORB_SLAM::tests::exitStatus();
 }
