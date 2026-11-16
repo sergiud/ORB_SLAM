@@ -64,6 +64,9 @@ void validate(boost::any& value, const std::vector<std::string>& values,
 
 namespace {
 
+// The capture reports the position of a frame in milliseconds.
+constexpr double millisecondsPerSecond = 1000;
+
 const char* const banner =
     "ORB SLAM\n"
     "Copyright (C) 2015 Sergiu Dotenco\n"
@@ -245,7 +248,7 @@ int main(int argc, char **argv)
 
             cv::Mat tmp;
             cv::cvtColor(image, tmp, cv::COLOR_BGR2GRAY);
-            tracker.Track(tmp);
+            tracker.Track(tmp, capture.get(cv::CAP_PROP_POS_MSEC) / millisecondsPerSecond);
 
             if (!noVideo) {
                 cv::imshow("ORB_SLAM", FramePub.DrawFrame());

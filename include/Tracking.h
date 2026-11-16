@@ -101,7 +101,14 @@ public:
 
     void CheckResetByPublishers();
 
-    void Track(const cv::Mat& image);
+    /**
+     * Tracks the camera in an image.
+     *
+     * @param image The grayscale image.
+     * @param timestamp The time in seconds at which the image was taken,
+     *        which the keyframes made from it carry.
+     */
+    void Track(const cv::Mat& image, double timestamp);
 
     eTrackingState GetState() const;
     bool IsTracking() const;

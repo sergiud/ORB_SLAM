@@ -220,12 +220,10 @@ void Tracking::Run()
 #endif // HAVE_ROS
 }
 
-void Tracking::Track(const cv::Mat& im)
+void Tracking::Track(const cv::Mat& im, double timestamp)
 {
-    if(mState==WORKING || mState==LOST)
-        mCurrentFrame = Frame(im, std::time(0), mpORBextractor,mpORBVocabulary,mK,mDistCoef);
-    else
-        mCurrentFrame = Frame(im, std::time(0), mpIniORBextractor,mpORBVocabulary,mK,mDistCoef);
+    ORBextractor* const extractor = mState==WORKING || mState==LOST ? mpORBextractor : mpIniORBextractor;
+    mCurrentFrame = Frame(im, timestamp, extractor,mpORBVocabulary,mK,mDistCoef);
 
     // Depending on the state of the Tracker we perform different tasks
 

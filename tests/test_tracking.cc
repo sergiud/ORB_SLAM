@@ -21,10 +21,12 @@
 #include <opencv2/core.hpp>
 
 #include "Check.h"
+#include "FramePublisher.h"
 #include "Frames.h"
 #include "LocalMapping.h"
 #include "Map.h"
 #include "MapPoint.h"
+#include "MapPublisher.h"
 #include "Storage.h"
 #include "Tracking.h"
 
@@ -249,6 +251,29 @@ void settingsTrackerStartsEmpty()
     std::destroy_at(tracking);
     std::filesystem::remove(settings);
 }
+
+// The frames the tracker makes from images carry the time of the image.
+void framesCarryImageTime()
+{
+    constexpr double timestamp = 1.5;
+    constexpr int width = 640;
+    constexpr int height = 480;
+
+    ORB_SLAM::Map map;
+    ORB_SLAM::FramePublisher framePublisher;
+    ORB_SLAM::MapPublisher mapPublisher{&map};
+    ORB_SLAM::Tracking tracking{nullptr, &framePublisher, &mapPublisher, &map,
+                                cv::Mat1f::eye(3, 3), cv::Mat{},
+                                framesPerSecond, features, scaleFactor, levels,
+                                fastThreshold, harrisScore,
+                                /*useMotionModel=*/true};
+
+    tracking.Track(cv::Mat::zeros(height, width, CV_8U), timestamp);
+
+    check(tracking.mCurrentFrame.mTimeStamp == timestamp,
+          std::format("the frame carries the time {} of its image, got {}",
+                      timestamp, tracking.mCurrentFrame.mTimeStamp));
+}
 } // namespace
 
 int main()
@@ -261,6 +286,7 @@ int main()
     keyPointsOfInliers();
     dropsRefusedKeyFrame();
     settingsTrackerStartsEmpty();
+    framesCarryImageTime();
 
     return ORB_SLAM::tests::exitStatus();
 }
