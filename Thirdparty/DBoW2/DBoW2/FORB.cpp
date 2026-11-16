@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2015 Dorian Galvez-Lopez <http://doriangalvez.com> (Universidad de Zaragoza)
+// SPDX-FileCopyrightText: 2015 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+//
+// SPDX-License-Identifier: BSD-3-Clause
+
 /**
  * File: FORB.cpp
  * Date: June 2012

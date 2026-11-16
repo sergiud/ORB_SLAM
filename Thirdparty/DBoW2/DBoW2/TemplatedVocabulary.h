@@ -1,3 +1,9 @@
+// SPDX-FileCopyrightText: 2015 Dorian Galvez-Lopez <http://doriangalvez.com> (Universidad de Zaragoza)
+// SPDX-FileCopyrightText: 2015 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
+// SPDX-FileCopyrightText: 2015-2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+//
+// SPDX-License-Identifier: BSD-3-Clause
+
 /**
  * This is a modified version of TemplatedVocabulary.h from DBoW2 (see below).
  * Added functions: Save and Load from text files without using cv::FileStorage.

@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2015 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
+# SPDX-FileCopyrightText: 2015-2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 cmake_minimum_required (VERSION 3.15)
 project (DBoW2)
 

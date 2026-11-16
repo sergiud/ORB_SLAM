@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2016-2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 set (HDRS_DBOW2
   BowVector.h
   FORB.h

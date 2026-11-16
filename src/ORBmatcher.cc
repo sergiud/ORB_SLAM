@@ -3,6 +3,7 @@
 * It is based on the file orb.cpp from the OpenCV library (see BSD license below)
 *
 * Copyright (C) 2014 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
+* Copyright (C) 2015-2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 * For more information see <http://webdiis.unizar.es/~raulmur/orbslam/>
 *
 * ORB-SLAM is free software: you can redistribute it and/or modify

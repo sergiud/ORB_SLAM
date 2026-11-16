@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2015-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
+SPDX-FileCopyrightText: 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
 
 ##Check out our new [ORB-SLAM2](https://github.com/raulmur/ORB_SLAM2) (Monocular, Stereo and RGB-D)
 ---

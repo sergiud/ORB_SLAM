@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2015-2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 cmake_minimum_required (VERSION 3.20)
 project (ORB_SLAM)
 
