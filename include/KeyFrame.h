@@ -31,6 +31,7 @@
 #include "KeyFrameDatabase.h"
 #include "ORB_SLAM_export.h"
 
+#include <atomic>
 #include <mutex>
 
 
@@ -223,7 +224,8 @@ protected:
     // Erase flags
     bool mbNotErase;
     bool mbToBeErased;
-    bool mbBad;
+    // Read without the lock by keyframes that connect to this one.
+    std::atomic<bool> mbBad;
 
     // Scale
     int mnScaleLevels;

@@ -129,6 +129,12 @@ void KeyFrame::AddConnection(KeyFrame *pKF, const int &weight)
 {
     {
         std::scoped_lock lock{mMutexConnections};
+        // An erased keyframe takes part in no covisibility graph. The
+        // erasure marks a keyframe before it removes the connections of
+        // others to it under their locks, so a connection either sees the
+        // mark here or is removed afterwards.
+        if(mbBad || pKF->mbBad)
+            return;
         if(!mConnectedKeyFrameWeights.count(pKF))
             mConnectedKeyFrameWeights[pKF]=weight;
         else if(mConnectedKeyFrameWeights[pKF]!=weight)
@@ -385,14 +391,12 @@ void KeyFrame::UpdateConnections()
         if(mit->second>=th)
         {
             vPairs.push_back(make_pair(mit->second,mit->first));
-            (mit->first)->AddConnection(this,mit->second);
         }
     }
 
     if(vPairs.empty())
     {
         vPairs.push_back(make_pair(nmax,pKFmax));
-        pKFmax->AddConnection(this,nmax);
     }
 
     sort(vPairs.begin(),vPairs.end());
@@ -404,8 +408,13 @@ void KeyFrame::UpdateConnections()
         lWs.push_front(vPairs[i].first);
     }
 
+    KeyFrame* pNewParent = NULL;
+
     {
         std::scoped_lock lockCon{mMutexConnections};
+
+        if(mbBad)
+            return;
 
         // mspConnectedKeyFrames = spConnectedKeyFrames;
         mConnectedKeyFrameWeights = KFcounter;
@@ -415,11 +424,22 @@ void KeyFrame::UpdateConnections()
         if(mbFirstConnection && mnId!=0)
         {
             mpParent = mvpOrderedConnectedKeyFrames.front();
-            mpParent->AddChild(this);
+            pNewParent = mpParent;
             mbFirstConnection = false;
         }
 
     }
+
+    // The neighbors connect to this keyframe only once it holds its own
+    // connections, so that an erasure that refused those leaves no neighbor
+    // connected to it.
+    for(size_t i=0; i<vPairs.size(); i++)
+        vPairs[i].second->AddConnection(this,vPairs[i].first);
+
+    // A keyframe locks no other keyframe while it holds its own lock, which
+    // keeps keyframes that update each other from deadlocking.
+    if(pNewParent)
+        pNewParent->AddChild(this);
 }
 
 void KeyFrame::AddChild(KeyFrame *pKF)
@@ -437,8 +457,11 @@ void KeyFrame::EraseChild(KeyFrame *pKF)
 
 void KeyFrame::ChangeParent(KeyFrame *pKF)
 {
-    std::scoped_lock lockCon{mMutexConnections};
-    mpParent = pKF;
+    {
+        std::scoped_lock lockCon{mMutexConnections};
+        mpParent = pKF;
+    }
+
     pKF->AddChild(this);
 }
 
@@ -498,8 +521,13 @@ void KeyFrame::SetErase()
 
 void KeyFrame::SetBadFlag()
 {
+    map<KeyFrame*,int> connections;
+    vector<MapPoint*> vpMapPoints;
+    set<KeyFrame*> sChildren;
+    KeyFrame* pParent;
+
     {
-        std::scoped_lock lock{mMutexConnections};
+        std::scoped_lock lock{mMutexConnections, mMutexFeatures};
         if(mnId==0)
             return;
         else if(mbNotErase)
@@ -507,83 +535,85 @@ void KeyFrame::SetBadFlag()
             mbToBeErased = true;
             return;
         }
+
+        // Other keyframes neither connect to nor adopt an erased keyframe,
+        // so what is taken here is all there is to undo. The work below
+        // locks one other keyframe at a time, which keeps erasures of
+        // neighboring keyframes from deadlocking.
+        mbBad = true;
+        connections.swap(mConnectedKeyFrameWeights);
+        mvpOrderedConnectedKeyFrames.clear();
+        mvOrderedWeights.clear();
+        vpMapPoints = mvpMapPoints;
+        sChildren.swap(mspChildrens);
+        pParent = mpParent;
     }
 
-    for(map<KeyFrame*,int>::iterator mit = mConnectedKeyFrameWeights.begin(), mend=mConnectedKeyFrameWeights.end(); mit!=mend; mit++)
+    for(map<KeyFrame*,int>::iterator mit = connections.begin(), mend=connections.end(); mit!=mend; mit++)
         mit->first->EraseConnection(this);
 
-    for(size_t i=0; i<mvpMapPoints.size(); i++)
-        if(mvpMapPoints[i])
-            mvpMapPoints[i]->EraseObservation(this);
+    for(size_t i=0; i<vpMapPoints.size(); i++)
+        if(vpMapPoints[i])
+            vpMapPoints[i]->EraseObservation(this);
+
+    // Update Spanning Tree
+    set<KeyFrame*> sParentCandidates;
+    sParentCandidates.insert(pParent);
+
+    // Assign at each iteration one children with a parent (the pair with highest covisibility weight)
+    // Include that children as new parent candidate for the rest
+    while(!sChildren.empty())
     {
-        std::scoped_lock lock{mMutexConnections};
-        std::scoped_lock lock1{mMutexFeatures};
+        bool bContinue = false;
 
-        mConnectedKeyFrameWeights.clear();
-        mvpOrderedConnectedKeyFrames.clear();
+        int max = -1;
+        KeyFrame* pC;
+        KeyFrame* pP;
 
-        // Update Spanning Tree
-        set<KeyFrame*> sParentCandidates;
-        sParentCandidates.insert(mpParent);
-
-        // Assign at each iteration one children with a parent (the pair with highest covisibility weight)
-        // Include that children as new parent candidate for the rest
-        while(!mspChildrens.empty())
+        for(set<KeyFrame*>::iterator sit=sChildren.begin(), send=sChildren.end(); sit!=send; sit++)
         {
-            bool bContinue = false;
+            KeyFrame* pKF = *sit;
+            if(pKF->isBad())
+                continue;
 
-            int max = -1;
-            KeyFrame* pC;
-            KeyFrame* pP;
-
-            for(set<KeyFrame*>::iterator sit=mspChildrens.begin(), send=mspChildrens.end(); sit!=send; sit++)
+            // Check if a parent candidate is connected to the keyframe
+            vector<KeyFrame*> vpConnected = pKF->GetVectorCovisibleKeyFrames();
+            for(size_t i=0, iend=vpConnected.size(); i<iend; i++)
             {
-                KeyFrame* pKF = *sit;
-                if(pKF->isBad())
-                    continue;
-
-                // Check if a parent candidate is connected to the keyframe
-                vector<KeyFrame*> vpConnected = pKF->GetVectorCovisibleKeyFrames();
-                for(size_t i=0, iend=vpConnected.size(); i<iend; i++)
+                for(set<KeyFrame*>::iterator spcit=sParentCandidates.begin(), spcend=sParentCandidates.end(); spcit!=spcend; spcit++)
                 {
-                    for(set<KeyFrame*>::iterator spcit=sParentCandidates.begin(), spcend=sParentCandidates.end(); spcit!=spcend; spcit++)
+                    if(vpConnected[i]->mnId == (*spcit)->mnId)
                     {
-                        if(vpConnected[i]->mnId == (*spcit)->mnId)
+                        int w = pKF->GetWeight(vpConnected[i]);
+                        if(w>max)
                         {
-                            int w = pKF->GetWeight(vpConnected[i]);
-                            if(w>max)
-                            {
-                                pC = pKF;
-                                pP = vpConnected[i];
-                                max = w;
-                                bContinue = true;
-                            }
+                            pC = pKF;
+                            pP = vpConnected[i];
+                            max = w;
+                            bContinue = true;
                         }
                     }
                 }
             }
-
-            if(bContinue)
-            {
-                pC->ChangeParent(pP);
-                sParentCandidates.insert(pC);
-                mspChildrens.erase(pC);
-            }
-            else
-                break;
         }
 
-        // If a children has no covisibility links with any parent candidate, assign to the original parent of this KF
-        if(!mspChildrens.empty())
-            for(set<KeyFrame*>::iterator sit=mspChildrens.begin(); sit!=mspChildrens.end(); sit++)
-            {
-                (*sit)->ChangeParent(mpParent);
-            }
-
-        mpParent->EraseChild(this);
-        mbBad = true;
+        if(bContinue)
+        {
+            pC->ChangeParent(pP);
+            sParentCandidates.insert(pC);
+            sChildren.erase(pC);
+        }
+        else
+            break;
     }
 
+    // If a children has no covisibility links with any parent candidate, assign to the original parent of this KF
+    for(set<KeyFrame*>::iterator sit=sChildren.begin(); sit!=sChildren.end(); sit++)
+    {
+        (*sit)->ChangeParent(pParent);
+    }
+
+    pParent->EraseChild(this);
 
     mpMap->EraseKeyFrame(this);
     mpKeyFrameDB->erase(this);
