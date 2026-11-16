@@ -21,6 +21,8 @@
 #ifndef OPTIMIZER_H
 #define OPTIMIZER_H
 
+#include <atomic>
+
 #include "Map.h"
 #include "MapPoint.h"
 #include "KeyFrame.h"
@@ -40,7 +42,15 @@ class ORB_SLAM_EXPORT Optimizer
 public:
     void static BundleAdjustment(const std::vector<KeyFrame*> &vpKF, const std::vector<MapPoint*> &vpMP, int nIterations = 5, bool *pbStopFlag=NULL);
     void static GlobalBundleAdjustemnt(Map* pMap, int nIterations=5, bool *pbStopFlag=NULL);
-    void static LocalBundleAdjustment(KeyFrame* pKF, bool *pbStopFlag=NULL);
+    /**
+     * Optimizes the poses of the keyframe and its covisible keyframes and
+     * the map points they see.
+     *
+     * @param pKF The keyframe whose neighborhood is optimized.
+     * @param pbStopFlag Another thread may set the flag to stop the
+     *        optimization after its current iteration.
+     */
+    void static LocalBundleAdjustment(KeyFrame* pKF, const std::atomic<bool>* pbStopFlag=NULL);
     int static PoseOptimization(Frame* pFrame);
 
     void static OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* pCurKF, g2o::Sim3 &Scurw,

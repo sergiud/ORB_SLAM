@@ -358,6 +358,27 @@ void loopCorrectionWaitsForLocalMapping()
           "correction");
 }
 
+// Tracking interrupts the bundle adjustment of local mapping while loop
+// closing requests a stop, which ThreadSanitizer checks for data races.
+void bundleAdjustmentInterruptedConcurrently()
+{
+    constexpr int requests = 1000;
+
+    ORB_SLAM::Map map;
+    ORB_SLAM::LocalMapping localMapping{&map};
+
+    std::jthread tracking{[&localMapping] {
+        for (int i = 0; i < requests; ++i) {
+            localMapping.InterruptBA();
+        }
+    }};
+
+    for (int i = 0; i < requests; ++i) {
+        localMapping.RequestStop();
+        localMapping.Release();
+    }
+}
+
 // A reset request returns once the worker reset, also if the worker resets
 // right after the request. The test resets in a tight loop in place of the
 // worker thread, which makes that order likely.
@@ -434,6 +455,7 @@ int main()
     waitsUntilLocalMappingStops();
     waitForLocalMappingEndsOnStopRequest();
     loopCorrectionWaitsForLocalMapping();
+    bundleAdjustmentInterruptedConcurrently();
     loopClosingReturnsWhenIdle();
     localMappingResetReturns();
     loopClosingResetReturns();

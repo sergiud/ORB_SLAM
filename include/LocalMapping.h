@@ -107,7 +107,7 @@ protected:
     std::condition_variable resetDone;
     std::mutex processMutex;
 
-    bool mbAbortBA;
+    std::atomic<bool> mbAbortBA;
     std::atomic<bool> mbStopped;
     std::atomic<bool> mbStopRequested;
     std::mutex mMutexStop;

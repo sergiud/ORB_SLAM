@@ -33,10 +33,38 @@
 
 #include<Eigen/StdVector>
 
+#include <atomic>
+#include <optional>
+
 #include "Converter.h"
 
 namespace ORB_SLAM
 {
+
+namespace {
+
+// Stops an optimization once another thread requests it.
+class StopOnRequest : public g2o::HyperGraphAction
+{
+public:
+    StopOnRequest(const std::atomic<bool>& request, bool& stop)
+        : request_{request}
+        , stop_{stop}
+    {
+    }
+
+    g2o::HyperGraphAction* operator()(const g2o::HyperGraph*, Parameters*) override
+    {
+        stop_ = request_.load();
+        return this;
+    }
+
+private:
+    const std::atomic<bool>& request_;
+    bool& stop_;
+};
+
+} // namespace
 
 void Optimizer::GlobalBundleAdjustemnt(Map* pMap, int nIterations, bool* pbStopFlag)
 {
@@ -287,7 +315,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
     return nInitialCorrespondences-nBad;
 }
 
-void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag)
+void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, const std::atomic<bool>* pbStopFlag)
 {
     // Local KeyFrames: First Breath Search from Current Keyframe
     list<KeyFrame*> lLocalKeyFrames;
@@ -340,6 +368,12 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag)
         }
     }
 
+    // g2o reads its stop flag without synchronization, so only this thread
+    // writes it, from the request of the other thread after each iteration.
+    // The action outlives the optimizer, which refers to it.
+    bool bStop = pbStopFlag && pbStopFlag->load();
+    std::optional<StopOnRequest> stopOnRequest;
+
     // Setup optimizer
     g2o::SparseOptimizer optimizer;
     g2o::BlockSolverX::LinearSolverType * linearSolver;
@@ -352,7 +386,10 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag)
     optimizer.setAlgorithm(solver);
 
     if(pbStopFlag)
-        optimizer.setForceStopFlag(pbStopFlag);
+    {
+        optimizer.setForceStopFlag(&bStop);
+        optimizer.addPostIterationAction(&stopOnRequest.emplace(*pbStopFlag, bStop));
+    }
 
     long unsigned int maxKFid = 0;
 

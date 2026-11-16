@@ -5,8 +5,10 @@
 // Tests of the optimizations that refine poses and similarities.
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <format>
+#include <thread>
 #include <vector>
 
 #include <opencv2/core.hpp>
@@ -25,6 +27,8 @@ using ORB_SLAM::tests::check;
 constexpr float focalLength = 500;
 constexpr float principalPointX = 320;
 constexpr float principalPointY = 240;
+constexpr int imageWidth = 640;
+constexpr int imageHeight = 480;
 constexpr ORB_SLAM::tests::Pyramid pyramid{1.2F, 8};
 // Chi-square threshold of loop closing for two degrees of freedom.
 constexpr float chiSquareThreshold = 10;
@@ -60,6 +64,107 @@ std::array<cv::Point3f, 12> scenePoints()
             cv::Point3f{-1.0F, 0.5F, 5.2F},  cv::Point3f{-0.5F, 0.5F, 4.4F},
             cv::Point3f{0.0F, 0.5F, 4.6F},   cv::Point3f{0.5F, 0.5F, 5.4F},
             cv::Point3f{1.0F, 0.5F, 4.1F},   cv::Point3f{1.5F, 0.5F, 4.9F}};
+}
+
+// Two keyframes that observe the scene points exactly, with the pose of the
+// second keyframe off along the x-axis. The first keyframe is the first of
+// its map, whose pose the optimizations keep fixed.
+struct PerturbedPair
+{
+    explicit PerturbedPair(float offset)
+    {
+        constexpr float secondCenter = 0.5F;
+
+        ORB_SLAM::KeyFrame::nNextId = 0;
+        ORB_SLAM::tests::setCamera(cameraMatrix(), imageWidth, imageHeight);
+        const auto points = scenePoints();
+
+        std::vector<cv::KeyPoint> firstKeyPoints;
+        std::vector<cv::KeyPoint> secondKeyPoints;
+
+        for (const cv::Point3f& point : points) {
+            firstKeyPoints.emplace_back(project(point, 0), 1.0F);
+            secondKeyPoints.emplace_back(project(point, secondCenter), 1.0F);
+        }
+
+        first = scene.addKeyFrame(poseAt(0), cameraMatrix(), firstKeyPoints,
+                                  pyramid);
+        second = scene.addKeyFrame(poseAt(secondCenter + offset),
+                                   cameraMatrix(), secondKeyPoints, pyramid);
+
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            scene.addMapPoint(points[i], {{first, i}, {second, i}});
+        }
+
+        first->UpdateConnections();
+        second->UpdateConnections();
+    }
+
+    ORB_SLAM::tests::Scene scene;
+    ORB_SLAM::KeyFrame* first;
+    ORB_SLAM::KeyFrame* second;
+};
+
+// Returns how far the camera center of the keyframe moved from x on the
+// x-axis.
+float centerMovedFrom(ORB_SLAM::KeyFrame* keyFrame, float x)
+{
+    const cv::Mat center = keyFrame->GetCameraCenter();
+    return static_cast<float>(cv::norm(center - cv::Mat{cv::Vec3f{x, 0, 0}}));
+}
+
+// A local bundle adjustment that is asked to stop before it starts leaves the
+// poses as they are, while one that runs moves the perturbed pose.
+void localBundleAdjustmentStopsOnRequest()
+{
+    constexpr float offset = 0.05F;
+    constexpr float unchanged = 1e-5F;
+
+    for (const bool stop : {false, true}) {
+        PerturbedPair pair{offset};
+        const std::atomic<bool> stopFlag{stop};
+        const float start = 0.5F + offset;
+
+        ORB_SLAM::Optimizer::LocalBundleAdjustment(pair.second, &stopFlag);
+
+        const float moved = centerMovedFrom(pair.second, start);
+
+        if (stop) {
+            check(moved <= unchanged,
+                  std::format("a stopped adjustment keeps the pose, moved {}",
+                              moved));
+        }
+        else {
+            check(moved > unchanged,
+                  std::format("an adjustment moves the perturbed pose, moved {}",
+                              moved));
+        }
+    }
+}
+
+// Another thread may ask a running local bundle adjustment to stop, which
+// ThreadSanitizer checks for data races.
+void localBundleAdjustmentStopsFromAnotherThread()
+{
+    constexpr int adjustments = 20;
+    constexpr float offset = 0.05F;
+
+    std::atomic<bool> stopFlag{false};
+    std::atomic<bool> done{false};
+
+    std::jthread stopping{[&stopFlag, &done] {
+        while (!done) {
+            stopFlag = !stopFlag;
+            std::this_thread::yield();
+        }
+    }};
+
+    for (int i = 0; i < adjustments; ++i) {
+        PerturbedPair pair{offset};
+        ORB_SLAM::Optimizer::LocalBundleAdjustment(pair.second, &stopFlag);
+    }
+
+    done = true;
 }
 
 // The similarity optimization weighs the observations of each keyframe by
@@ -116,6 +221,8 @@ void sim3KeepsCoarseInliers()
 int main()
 {
     sim3KeepsCoarseInliers();
+    localBundleAdjustmentStopsOnRequest();
+    localBundleAdjustmentStopsFromAnotherThread();
 
     return ORB_SLAM::tests::exitStatus();
 }
