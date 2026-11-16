@@ -426,6 +426,35 @@ void mapClearedConcurrently()
     done = true;
 }
 
+// The covisible keyframes by weight are those that share at least that many
+// map points, also when every neighbor does.
+void covisiblesReachingWeight()
+{
+    constexpr int threshold = 100;
+    constexpr int strong = 150;
+    constexpr int stronger = 120;
+    constexpr int weak = 50;
+
+    ORB_SLAM::tests::Scene scene;
+    addKeyFrame(scene);
+    ORB_SLAM::KeyFrame* const keyFrame = addKeyFrame(scene);
+    ORB_SLAM::KeyFrame* const first = addKeyFrame(scene);
+    ORB_SLAM::KeyFrame* const second = addKeyFrame(scene);
+
+    keyFrame->AddConnection(first, strong);
+    keyFrame->AddConnection(second, stronger);
+
+    const std::size_t all = keyFrame->GetCovisiblesByWeight(threshold).size();
+
+    keyFrame->AddConnection(second, weak);
+    const std::size_t some = keyFrame->GetCovisiblesByWeight(threshold).size();
+
+    check(all == 2 && some == 1,
+          std::format("2 and then 1 keyframes share at least {} map points, "
+                      "got {} and {}",
+                      threshold, all, some));
+}
+
 } // namespace
 
 int main()
@@ -439,6 +468,7 @@ int main()
     medianDepthOfMapPoints();
     erasureReleasedConcurrently();
     mapClearedConcurrently();
+    covisiblesReachingWeight();
 
     return ORB_SLAM::tests::exitStatus();
 }

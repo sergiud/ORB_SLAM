@@ -199,14 +199,11 @@ vector<KeyFrame*> KeyFrame::GetCovisiblesByWeight(const int &w)
     if(mvpOrderedConnectedKeyFrames.empty())
         return vector<KeyFrame*>();
 
+    // The weights descend, so the keyframes before the first weight below
+    // w are all that reach it.
     vector<int>::iterator it = upper_bound(mvOrderedWeights.begin(),mvOrderedWeights.end(),w,KeyFrame::weightComp);
-    if(it==mvOrderedWeights.end())
-        return vector<KeyFrame*>();
-    else
-    {
-        int n = it-mvOrderedWeights.begin();
-        return vector<KeyFrame*>(mvpOrderedConnectedKeyFrames.begin(), mvpOrderedConnectedKeyFrames.begin()+n);
-    }
+    const int n = it-mvOrderedWeights.begin();
+    return vector<KeyFrame*>(mvpOrderedConnectedKeyFrames.begin(), mvpOrderedConnectedKeyFrames.begin()+n);
 }
 
 int KeyFrame::GetWeight(KeyFrame *pKF)
