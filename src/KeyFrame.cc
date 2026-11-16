@@ -232,14 +232,19 @@ void KeyFrame::EraseMapPointMatch(const size_t &idx)
 
 void KeyFrame::EraseMapPointMatch(MapPoint* pMP)
 {
+    // The map point locks itself, so its index is looked up before the lock.
     int idx = pMP->GetIndexInKeyFrame(this);
     if(idx>=0)
+    {
+        std::scoped_lock lock{mMutexFeatures};
         mvpMapPoints[idx]=NULL;
+    }
 }
 
 
 void KeyFrame::ReplaceMapPointMatch(const size_t &idx, MapPoint* pMP)
 {
+    std::scoped_lock lock{mMutexFeatures};
     mvpMapPoints[idx]=pMP;
 }
 

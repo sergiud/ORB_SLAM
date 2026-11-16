@@ -203,6 +203,36 @@ void erasedKeyFrameStaysDisconnected()
     }
 }
 
+// Fusing map points replaces and erases the map points of a keyframe while
+// tracking reads them, which ThreadSanitizer checks for data races.
+void mapPointsReplacedConcurrently()
+{
+    constexpr int replacements = 1000;
+
+    ORB_SLAM::tests::Scene scene;
+    addKeyFrame(scene);
+    const std::vector<cv::KeyPoint> keyPoint{cv::KeyPoint{0, 0, 1}};
+    ORB_SLAM::KeyFrame* const keyFrame = scene.addKeyFrame(
+        cv::Mat::eye(4, 4, CV_32F), cv::Mat::eye(3, 3, CV_32F), keyPoint);
+    ORB_SLAM::MapPoint* const point =
+        scene.addMapPoint({0, 0, 1}, {{keyFrame, 0}});
+
+    std::atomic<bool> done{false};
+
+    std::jthread tracking{[keyFrame, &done] {
+        while (!done) {
+            std::ignore = keyFrame->GetMapPoint(0);
+        }
+    }};
+
+    for (int i = 0; i < replacements; ++i) {
+        keyFrame->ReplaceMapPointMatch(0, point);
+        keyFrame->EraseMapPointMatch(point);
+    }
+
+    done = true;
+}
+
 } // namespace
 
 int main()
@@ -210,6 +240,7 @@ int main()
     erasingNeighborsFinishes();
     erasedKeyFrameKeepsNoConnections();
     erasedKeyFrameStaysDisconnected();
+    mapPointsReplacedConcurrently();
 
     return ORB_SLAM::tests::exitStatus();
 }
