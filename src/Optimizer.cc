@@ -289,13 +289,15 @@ int Optimizer::PoseOptimization(Frame *pFrame)
             if(pFrame->mvbOutlier[idx])
                 e->computeError();
 
-            if(e->chi2()>chi2[it])
+            // An error that is not a number, such as of a point at the
+            // camera center, makes an outlier too.
+            if(!(e->chi2()<=chi2[it]))
             {
                 pFrame->mvbOutlier[idx]=true;
                 e->setLevel(1);
                 nBad++;
             }
-            else if(e->chi2()<=chi2[it])
+            else
             {
                 pFrame->mvbOutlier[idx]=false;
                 e->setLevel(0);

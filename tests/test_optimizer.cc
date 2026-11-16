@@ -167,6 +167,49 @@ void localBundleAdjustmentStopsFromAnotherThread()
     done = true;
 }
 
+// A map point at the camera center has no projection. Pose optimization
+// takes it for an outlier and keeps the pose finite.
+void poseIgnoresPointAtCenter()
+{
+    constexpr float offset = 0.02F;
+
+    ORB_SLAM::tests::setCamera(cameraMatrix(), imageWidth, imageHeight);
+
+    const auto points = scenePoints();
+    std::vector<cv::KeyPoint> keyPoints;
+
+    for (const cv::Point3f& point : points) {
+        keyPoints.emplace_back(project(point, 0), 1.0F);
+    }
+
+    // The degenerate point is seen at the principal point.
+    keyPoints.emplace_back(principalPointX, principalPointY, 1.0F);
+    const std::size_t degenerate = points.size();
+
+    ORB_SLAM::tests::Scene scene;
+    ORB_SLAM::KeyFrame* const keyFrame =
+        scene.addKeyFrame(poseAt(0), cameraMatrix(), keyPoints, pyramid);
+    ORB_SLAM::Frame frame = ORB_SLAM::tests::makeFrame(
+        poseAt(offset), cameraMatrix(), keyPoints, pyramid);
+
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        frame.mvpMapPoints[i] = scene.addMapPoint(points[i], {{keyFrame, i}});
+    }
+
+    frame.mvpMapPoints[degenerate] =
+        scene.addMapPoint({0, 0, 0}, {{keyFrame, degenerate}});
+
+    const int inliers = ORB_SLAM::Optimizer::PoseOptimization(&frame);
+
+    check(cv::checkRange(frame.mTcw),
+          "the pose stays finite next to a point at the camera center");
+    check(frame.mvbOutlier[degenerate] &&
+              inliers == static_cast<int>(points.size()),
+          std::format("the point at the camera center is the only outlier, "
+                      "got {} inliers of {}",
+                      inliers, points.size()));
+}
+
 // The similarity optimization weighs the observations of each keyframe by
 // the inverse variance of their pyramid level. Observations of the second
 // keyframe at a coarse level that are off by a few pixels lie within the
@@ -223,6 +266,7 @@ int main()
     sim3KeepsCoarseInliers();
     localBundleAdjustmentStopsOnRequest();
     localBundleAdjustmentStopsFromAnotherThread();
+    poseIgnoresPointAtCenter();
 
     return ORB_SLAM::tests::exitStatus();
 }
