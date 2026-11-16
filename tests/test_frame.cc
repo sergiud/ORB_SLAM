@@ -158,10 +158,37 @@ void retainsRequestedFeatures()
                       fewFeatures, keyPoints.size(), coarsest));
 }
 
+// An area search finds keypoints anywhere in the image, including those in
+// the last pixels of each row and column.
+void areaSearchFindsKeyPointsNearEdges()
+{
+    constexpr float margin = 4;
+    constexpr float radius = 2;
+
+    ORB_SLAM::tests::setCamera(cameraMatrix(), width, height);
+
+    for (const cv::Point2f position :
+         {cv::Point2f{width - margin, height - margin},
+          cv::Point2f{margin, margin}}) {
+        const ORB_SLAM::Frame frame = ORB_SLAM::tests::makeFrame(
+            cv::Mat::eye(4, 4, CV_32F), cameraMatrix(),
+            {cv::KeyPoint{position, 1}});
+
+        const std::vector<std::size_t> found =
+            frame.GetFeaturesInArea(position.x, position.y, radius);
+
+        check(found == std::vector<std::size_t>{0},
+              std::format("the search around ({}, {}) finds the keypoint "
+                          "there, got {} keypoints",
+                          position.x, position.y, found.size()));
+    }
+}
+
 } // namespace
 
 int main()
 {
+    areaSearchFindsKeyPointsNearEdges();
     retainsRequestedFeatures();
     constexpr int levelFeatures = 400;
     // Fewer features than a cell holds.
