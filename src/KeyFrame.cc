@@ -511,15 +511,18 @@ void KeyFrame::SetNotErase()
 
 void KeyFrame::SetErase()
 {
+    bool bToBeErased;
+
     {
         std::scoped_lock lock{mMutexConnections};
         if(mspLoopEdges.empty())
         {
             mbNotErase = false;
         }
+        bToBeErased = mbToBeErased;
     }
 
-    if(mbToBeErased)
+    if(bToBeErased)
     {
         SetBadFlag();
     }

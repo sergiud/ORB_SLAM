@@ -364,6 +364,35 @@ void medianDepthOfMapPoints()
                                       median.value_or(0)));
 }
 
+// Loop closing releases a keyframe for erasure while local mapping tries to
+// erase it, which ThreadSanitizer checks for data races. A loop edge keeps
+// the keyframe from erasure, so that both keep trying.
+void erasureReleasedConcurrently()
+{
+    constexpr int attempts = 1000;
+
+    ORB_SLAM::tests::Scene scene;
+    addKeyFrame(scene);
+    ORB_SLAM::KeyFrame* const root = addKeyFrame(scene);
+    ORB_SLAM::KeyFrame* const keyFrame = addKeyFrame(scene);
+    keyFrame->ChangeParent(root);
+    keyFrame->AddLoopEdge(root);
+
+    std::atomic<bool> done{false};
+
+    std::jthread localMapping{[keyFrame, &done] {
+        while (!done) {
+            keyFrame->SetBadFlag();
+        }
+    }};
+
+    for (int i = 0; i < attempts; ++i) {
+        keyFrame->SetErase();
+    }
+
+    done = true;
+}
+
 } // namespace
 
 int main()
@@ -375,6 +404,7 @@ int main()
     relocalisationIgnoresUncomparedNeighbors();
     startsWithoutQueries();
     medianDepthOfMapPoints();
+    erasureReleasedConcurrently();
 
     return ORB_SLAM::tests::exitStatus();
 }
