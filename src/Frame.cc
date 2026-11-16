@@ -230,7 +230,7 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
     {
         for(int iy = nMinCellY; iy<=nMaxCellY; iy++)
         {
-            vector<size_t> vCell = mGrid[ix][iy];
+            const vector<size_t>& vCell = mGrid[ix][iy];
             if(vCell.empty())
                 continue;
 
