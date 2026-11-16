@@ -87,6 +87,11 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
         // Leaving the scope waits until both threads have finished
     }
 
+    // Matches that support neither model leave both without a score, as do
+    // degenerate ones whose scores are not numbers.
+    if(!(SH+SF>0))
+        return false;
+
     // Compute ratio of scores
     float RH = SH/(SH+SF);
 
@@ -154,7 +159,7 @@ void Initializer::FindHomography(vector<bool> &vbMatchesInliers, float &score, c
 void Initializer::FindFundamental(vector<bool> &vbMatchesInliers, float &score, cv::Mat &F21)
 {
     // Number of putative matches
-    const int N = vbMatchesInliers.size();
+    const int N = mvMatches12.size();
 
     // Normalize coordinates
     vector<cv::Point2f> vPn1, vPn2;
