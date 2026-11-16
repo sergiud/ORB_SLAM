@@ -123,6 +123,8 @@ unsigned int Map::GetMaxKFid()
 
 void Map::clear()
 {
+    std::scoped_lock lock{mMutexMap};
+
     for(set<MapPoint*>::iterator sit=mspMapPoints.begin(), send=mspMapPoints.end(); sit!=send; sit++)
         delete *sit;
 

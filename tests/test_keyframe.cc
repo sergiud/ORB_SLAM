@@ -393,6 +393,39 @@ void erasureReleasedConcurrently()
     done = true;
 }
 
+// Tracking resets the map while the publishers read it, which
+// ThreadSanitizer checks for data races.
+void mapClearedConcurrently()
+{
+    constexpr int resets = 200;
+    constexpr int keyFrames = 10;
+
+    ORB_SLAM::Map map;
+    ORB_SLAM::ORBVocabulary vocabulary;
+    ORB_SLAM::KeyFrameDatabase database{vocabulary};
+    ORB_SLAM::Frame frame =
+        ORB_SLAM::tests::makeFrame(cv::Mat::eye(4, 4, CV_32F));
+
+    std::atomic<bool> done{false};
+
+    std::jthread publisher{[&map, &done] {
+        while (!done) {
+            std::ignore = map.GetAllKeyFrames();
+        }
+    }};
+
+    for (int i = 0; i < resets; ++i) {
+        for (int j = 0; j < keyFrames; ++j) {
+            // The map owns the keyframe and deletes it on clearing.
+            map.AddKeyFrame(new ORB_SLAM::KeyFrame{frame, &map, &database});
+        }
+
+        map.clear();
+    }
+
+    done = true;
+}
+
 } // namespace
 
 int main()
@@ -405,6 +438,7 @@ int main()
     startsWithoutQueries();
     medianDepthOfMapPoints();
     erasureReleasedConcurrently();
+    mapClearedConcurrently();
 
     return ORB_SLAM::tests::exitStatus();
 }
