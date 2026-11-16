@@ -193,7 +193,6 @@ protected:
 
     //Mutex
     std::mutex mMutexTrack;
-    std::mutex mMutexForceRelocalisation;
 
     //Reset
     std::atomic<bool> mbPublisherStopped;

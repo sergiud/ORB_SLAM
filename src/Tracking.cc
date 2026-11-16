@@ -1048,12 +1048,11 @@ bool Tracking::Relocalisation()
     // Relocalisation is performed when tracking is lost and forced at some stages during loop closing
     // Track Lost: Query KeyFrame Database for keyframe candidates for relocalisation
     vector<KeyFrame*> vpCandidateKFs;
-    if(!RelocalisationRequested())
+    if(!mbForceRelocalisation.exchange(false))
         vpCandidateKFs= mpKeyFrameDB->DetectRelocalisationCandidates(&mCurrentFrame);
     else // Forced Relocalisation: Relocate against local window around last keyframe
     {
-        std::scoped_lock lock{mMutexForceRelocalisation};
-        mbForceRelocalisation = false;
+        mnLastRelocFrameId = mCurrentFrame.mnId;
         vpCandidateKFs.reserve(10);
         vpCandidateKFs = mpLastKeyFrame->GetBestCovisibilityKeyFrames(9);
         vpCandidateKFs.push_back(mpLastKeyFrame);
@@ -1213,14 +1212,13 @@ bool Tracking::Relocalisation()
 
 void Tracking::ForceRelocalisation()
 {
-    std::scoped_lock lock{mMutexForceRelocalisation};
+    // Loop closing calls this, so the tracking thread itself takes the
+    // request together with the frame it relocalises.
     mbForceRelocalisation = true;
-    mnLastRelocFrameId = mCurrentFrame.mnId;
 }
 
 bool Tracking::RelocalisationRequested()
 {
-    std::scoped_lock lock{mMutexForceRelocalisation};
     return mbForceRelocalisation;
 }
 

@@ -4,6 +4,7 @@
 
 // Tests of the tracking front end that need no images.
 
+#include <atomic>
 #include <cstddef>
 #include <filesystem>
 #include <format>
@@ -17,6 +18,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include <opencv2/core.hpp>
@@ -333,6 +335,39 @@ void framesCarryImageTime()
                       timestamp, tracking.mCurrentFrame.mTimeStamp));
 }
 
+// Loop closing forces a relocalisation while the tracker processes images,
+// which ThreadSanitizer checks for data races.
+void relocalisationForcedConcurrently()
+{
+    constexpr int images = 50;
+    constexpr int width = 640;
+    constexpr int height = 480;
+
+    ORB_SLAM::Map map;
+    ORB_SLAM::FramePublisher framePublisher;
+    ORB_SLAM::MapPublisher mapPublisher{&map};
+    ORB_SLAM::Tracking tracking{nullptr, &framePublisher, &mapPublisher, &map,
+                                cv::Mat1f::eye(3, 3), cv::Mat{},
+                                framesPerSecond, features, scaleFactor, levels,
+                                fastThreshold, harrisScore,
+                                /*useMotionModel=*/true};
+    const cv::Mat black = cv::Mat::zeros(height, width, CV_8U);
+
+    std::atomic<bool> done{false};
+
+    std::jthread loopClosing{[&tracking, &done] {
+        while (!done) {
+            tracking.ForceRelocalisation();
+        }
+    }};
+
+    for (int i = 0; i < images; ++i) {
+        tracking.Track(black, i);
+    }
+
+    done = true;
+}
+
 } // namespace
 
 int main()
@@ -354,6 +389,7 @@ int main()
     dropsRefusedKeyFrame();
     settingsTrackerStartsEmpty();
     framesCarryImageTime();
+    relocalisationForcedConcurrently();
 
     return ORB_SLAM::tests::exitStatus();
 }
