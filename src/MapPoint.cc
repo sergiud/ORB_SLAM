@@ -21,6 +21,10 @@
 #include "MapPoint.h"
 #include "ORBmatcher.h"
 
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
 #ifdef HAVE_ROS
 #include "ros/ros.h"
 #endif // HAVE_ROS
@@ -302,16 +306,32 @@ void MapPoint::UpdateNormalAndDepth()
     cv::Mat PC = Pos - pRefKF->GetCameraCenter();
     const float dist = cv::norm(PC);
     const int level = pRefKF->GetKeyPointScaleLevel(observations[pRefKF]);
-    const float scaleFactor = pRefKF->GetScaleFactor();
     const float levelScaleFactor =  pRefKF->GetScaleFactor(level);
     const int nLevels = pRefKF->GetScaleLevels();
 
     {
         std::scoped_lock lock3{mMutexPos};
-        mfMinDistance = (1.0f/scaleFactor)*dist / levelScaleFactor;
-        mfMaxDistance = scaleFactor*dist * pRefKF->GetScaleFactor(nLevels-1-level);
+        // Coarser levels detect the point closer to the camera, down to the
+        // coarsest level, and the finest level detects it farthest away.
+        mfMaxDistance = dist*levelScaleFactor;
+        mfMinDistance = mfMaxDistance/pRefKF->GetScaleFactor(nLevels-1);
         mNormalVector = normal/n;
     }
+}
+
+int MapPoint::PredictScale(float dist, const std::vector<float>& scaleFactors)
+{
+    const int maxLevel = static_cast<int>(scaleFactors.size())-1;
+
+    if(maxLevel<1)
+        return 0;
+
+    // The point appears one level coarser for each scale factor the camera
+    // comes closer than the largest distance.
+    const float ratio = GetMaxDistanceInvariance()/dist;
+    const long level = std::lround(std::log(ratio)/std::log(scaleFactors[1]));
+
+    return static_cast<int>(std::clamp(level, 0L, static_cast<long>(maxLevel)));
 }
 
 float MapPoint::GetMinDistanceInvariance()

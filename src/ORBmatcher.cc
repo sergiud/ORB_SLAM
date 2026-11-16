@@ -345,10 +345,7 @@ int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapP
             continue;
 
         // Compute predicted scale level
-        const float ratio = dist/minDistance;
-
-        vector<float>::iterator it = lower_bound(vfScaleFactors.begin(), vfScaleFactors.end(), ratio);
-        const int nPredictedLevel = min(static_cast<int>(it-vfScaleFactors.begin()),nMaxLevel);
+        const int nPredictedLevel = pMP->PredictScale(dist, vfScaleFactors);
 
         // Search in a radius
         const float radius = th*pKF->GetScaleFactor(nPredictedLevel);
@@ -1033,10 +1030,7 @@ int ORBmatcher::Fuse(KeyFrame *pKF, vector<MapPoint *> &vpMapPoints, float th)
             continue;
 
         // Compute predicted scale level
-        const float ratio = dist3D/minDistance;
-
-        vector<float>::iterator it = lower_bound(vfScaleFactors.begin(), vfScaleFactors.end(), ratio);
-        const int nPredictedLevel = min(static_cast<int>(it-vfScaleFactors.begin()),nMaxLevel);
+        const int nPredictedLevel = pMP->PredictScale(dist3D, vfScaleFactors);
 
         // Search in a radius
         const float radius = th*vfScaleFactors[nPredictedLevel];
@@ -1162,10 +1156,7 @@ int ORBmatcher::Fuse(KeyFrame *pKF, cv::Mat Scw, const vector<MapPoint *> &vpPoi
             continue;
 
         // Compute predicted scale level
-        const float ratio = dist3D/minDistance;
-
-        vector<float>::iterator it = lower_bound(vfScaleFactors.begin(), vfScaleFactors.end(), ratio);
-        const int nPredictedLevel = min(static_cast<int>(it-vfScaleFactors.begin()),nMaxLevel);
+        const int nPredictedLevel = pMP->PredictScale(dist3D, vfScaleFactors);
 
         // Search in a radius of 2.5*sigma(ScaleLevel)
         const float radius = th*pKF->GetScaleFactor(nPredictedLevel);
@@ -1313,10 +1304,7 @@ int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &
             continue;
 
         // Compute predicted octave
-        float ratio = dist3D/minDistance;
-
-        vector<float>::iterator it = lower_bound(vfScaleFactors2.begin(), vfScaleFactors2.end(), ratio);
-        const int nPredictedLevel = min(static_cast<int>(it-vfScaleFactors2.begin()),nMaxLevel2);
+        const int nPredictedLevel = pMP->PredictScale(dist3D, vfScaleFactors2);
 
         // Search in a radius
         float radius = th*vfScaleFactors2[nPredictedLevel];
@@ -1396,10 +1384,7 @@ int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &
             continue;
 
         // Compute predicted octave
-        float ratio = dist3D/minDistance;
-
-        vector<float>::iterator it = lower_bound(vfScaleFactors1.begin(), vfScaleFactors1.end(), ratio);
-        const int nPredictedLevel = min(static_cast<int>(it-vfScaleFactors1.begin()),nMaxLevel1);
+        const int nPredictedLevel = pMP->PredictScale(dist3D, vfScaleFactors1);
 
 
 
@@ -1613,10 +1598,7 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
                 float minDistance = pMP->GetMinDistanceInvariance();
                 cv::Mat PO = x3Dw-Ow;
                 float dist3D = cv::norm(PO);
-                float ratio = dist3D/minDistance;
-
-                vector<float>::iterator it = lower_bound(CurrentFrame.mvScaleFactors.begin(), CurrentFrame.mvScaleFactors.end(), ratio);
-                const int nPredictedLevel = min(static_cast<int>(it-CurrentFrame.mvScaleFactors.begin()),CurrentFrame.mnScaleLevels-1);
+                const int nPredictedLevel = pMP->PredictScale(dist3D, CurrentFrame.mvScaleFactors);
 
                 // Search in a window
                 float radius = th*CurrentFrame.mvScaleFactors[nPredictedLevel];

@@ -27,6 +27,7 @@
 #include "ORB_SLAM_export.h"
 
 #include <mutex>
+#include <vector>
 
 
 namespace ORB_SLAM
@@ -71,6 +72,15 @@ public:
     cv::Mat GetDescriptor();
 
     void UpdateNormalAndDepth();
+
+    /**
+     * Predicts the pyramid level at which a camera at distance @p dist
+     * detects this point.
+     *
+     * @param dist The distance between the camera center and the point.
+     * @param scaleFactors The scale factor of each pyramid level of the camera.
+     */
+    int PredictScale(float dist, const std::vector<float>& scaleFactors);
 
     float GetMinDistanceInvariance();
     float GetMaxDistanceInvariance();

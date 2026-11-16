@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-foreach (_test matcher optimizer sampling threads tracking)
+foreach (_test mappoint matcher optimizer sampling threads tracking)
   add_executable (test_${_test} test_${_test}.cc Check.h Frames.h Scene.h
     Storage.h)
   target_compile_features (test_${_test} PRIVATE cxx_std_23)
@@ -13,6 +13,7 @@ add_test (NAME ORB_SLAM/threads COMMAND test_threads)
 # A worker that ignores the stop request never returns.
 set_tests_properties (ORB_SLAM/threads PROPERTIES TIMEOUT 60)
 
+add_test (NAME ORB_SLAM/mappoint COMMAND test_mappoint)
 add_test (NAME ORB_SLAM/matcher COMMAND test_matcher)
 add_test (NAME ORB_SLAM/optimizer COMMAND test_optimizer)
 add_test (NAME ORB_SLAM/sampling COMMAND test_sampling)

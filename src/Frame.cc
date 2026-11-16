@@ -184,13 +184,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
         return false;
 
     // Predict scale level acording to the distance
-    float ratio = dist/minDistance;
-
-    vector<float>::iterator it = lower_bound(mvScaleFactors.begin(), mvScaleFactors.end(), ratio);
-    int nPredictedLevel = it-mvScaleFactors.begin();
-
-    if(nPredictedLevel>=mnScaleLevels)
-        nPredictedLevel=mnScaleLevels-1;
+    const int nPredictedLevel = pMP->PredictScale(dist, mvScaleFactors);
 
     // Data used by the tracking
     pMP->mbTrackInView = true;
