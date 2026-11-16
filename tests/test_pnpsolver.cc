@@ -108,11 +108,32 @@ void iteratesWithinBudget()
                       calls, perCall, call));
 }
 
+// Solvers of different candidates may run in different threads, which
+// ThreadSanitizer checks for data races.
+void solversRunConcurrently()
+{
+    RandomCorrespondences first;
+    RandomCorrespondences second;
+
+    auto solve = [](const RandomCorrespondences& data) {
+        ORB_SLAM::PnPsolver solver{data.frame, data.matches};
+        solver.SetRansacParameters(probability, minInliers, maxIterations,
+                                   sampleSize, inlierRatio, chiSquare);
+        std::vector<bool> inliers;
+        int inlierCount = 0;
+        std::ignore = solver.find(inliers, inlierCount);
+    };
+
+    std::jthread other{[&solve, &second] { solve(second); }};
+    solve(first);
+}
+
 } // namespace
 
 int main()
 {
     iteratesWithinBudget();
+    solversRunConcurrently();
 
     return ORB_SLAM::tests::exitStatus();
 }

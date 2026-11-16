@@ -843,21 +843,12 @@ void PnPsolver::gauss_newton(const cv::Mat &L_6x10, const cv::Mat &Rho,
 
 void PnPsolver::qr_solve(cv::Mat &A, cv::Mat &b, cv::Mat &X)
 {
-  static int max_nr = 0;
-  static double * A1, * A2;
-
   const int nr = A.rows;
   const int nc = A.cols;
 
-  if (max_nr != 0 && max_nr < nr) {
-    delete [] A1;
-    delete [] A2;
-  }
-  if (max_nr < nr) {
-    max_nr = nr;
-    A1 = new double[nr];
-    A2 = new double[nr];
-  }
+  // Each call has buffers of its own, so that solvers run concurrently.
+  std::vector<double> A1(nr);
+  std::vector<double> A2(nr);
 
   double * pA = A.ptr<double>(), * ppAkk = pA;
   for(int k = 0; k < nc; k++) {
@@ -869,8 +860,9 @@ void PnPsolver::qr_solve(cv::Mat &A, cv::Mat &b, cv::Mat &X)
     }
 
     if (eta == 0) {
-      A1[k] = A2[k] = 0.0;
       cerr << "God damnit, A is singular, this shouldn't happen." << endl;
+      // A singular system has no solution, so none is left uninitialized.
+      X.setTo(0);
       return;
     } else {
       double * ppAik = ppAkk, sum = 0.0, inv_eta = 1. / eta;
