@@ -55,18 +55,18 @@ public:
     bool InsertKeyFrame(KeyFrame* pKF);
 
     // Thread Synch
-    void RequestStop();
+    void RequestPause();
     void RequestReset();
 
-    bool Stop();
+    bool Pause();
 
-    void Release();
+    void Resume();
 
-    bool WaitUntilStopped(std::stop_token stopToken);
+    bool WaitUntilPaused(std::stop_token stopToken);
 
-    bool isStopped();
+    bool isPaused();
 
-    bool stopRequested();
+    bool pauseRequested();
 
     bool AcceptKeyFrames();
     void SetAcceptKeyFrames(bool flag);
@@ -114,10 +114,10 @@ protected:
     std::mutex processMutex;
 
     std::atomic<bool> mbAbortBA;
-    std::atomic<bool> mbStopped;
-    std::atomic<bool> mbStopRequested;
-    std::mutex mMutexStop;
-    std::condition_variable_any stoppedChanged;
+    std::atomic<bool> mbPaused;
+    std::atomic<bool> mbPauseRequested;
+    std::mutex mMutexPause;
+    std::condition_variable_any pausedChanged;
 
     std::atomic<bool> mbAcceptKeyFrames;
     std::mutex mMutexAccept;

@@ -215,7 +215,7 @@ public:
     using ORB_SLAM::Tracking::mnLastKeyFrameId;
 };
 
-// A keyframe that local mapping refuses while loop closing stops it is not
+// A keyframe that local mapping refuses while loop closing pauses it is not
 // the last keyframe of the tracker, which would otherwise refer to a
 // keyframe nobody processes or owns.
 void dropsRefusedKeyFrame()
@@ -238,7 +238,7 @@ void dropsRefusedKeyFrame()
         ORB_SLAM::tests::makeFrame(cv::Mat::eye(4, 4, CV_32F));
     tracking.mCurrentFrame.mnId = frameId;
 
-    localMapping.RequestStop();
+    localMapping.RequestPause();
     tracking.CreateNewKeyFrame();
 
     check(tracking.mpLastKeyFrame == nullptr,

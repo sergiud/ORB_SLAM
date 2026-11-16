@@ -36,7 +36,7 @@ namespace ORB_SLAM
 {
 
 LocalMapping::LocalMapping(Map *pMap):
-    mbResetRequested(false), mpMap(pMap),  mbAbortBA(false), mbStopped(false), mbStopRequested(false), mbAcceptKeyFrames(true),
+    mbResetRequested(false), mpMap(pMap),  mbAbortBA(false), mbPaused(false), mbPauseRequested(false), mbAcceptKeyFrames(true),
     mpLoopCloser(NULL), mpTracker(NULL)
 {
 }
@@ -77,7 +77,7 @@ void LocalMapping::Run(std::stop_token stopToken)
 
             mbAbortBA = false;
 
-            if(!CheckNewKeyFrames() && !stopRequested())
+            if(!CheckNewKeyFrames() && !pauseRequested())
             {
                 // Local BA
                 Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA);
@@ -96,11 +96,11 @@ void LocalMapping::Run(std::stop_token stopToken)
                 mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
         }
 
-        // Safe area to stop
-        if(Stop())
+        // Safe area to pause
+        if(Pause())
         {
             ros::Rate r2(1000);
-            while(isStopped() && ros::ok())
+            while(isPaused() && ros::ok())
             {
                 r2.sleep();
             }
@@ -134,7 +134,7 @@ void LocalMapping::Run(std::stop_token stopToken)
 
             mbAbortBA = false;
 
-            if(!CheckNewKeyFrames() && !stopRequested())
+            if(!CheckNewKeyFrames() && !pauseRequested())
             {
                 // Local BA
                 Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA);
@@ -153,12 +153,12 @@ void LocalMapping::Run(std::stop_token stopToken)
                 mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
         }
 
-        // Safe area to stop
-        if(Stop())
+        // Safe area to pause
+        if(Pause())
         {
             {
                 std::unique_lock lock{processMutex};
-                processNext.wait(lock, stopToken, [this] { return !isStopped(); });
+                processNext.wait(lock, stopToken, [this] { return !isPaused(); });
             }
 
             SetAcceptKeyFrames(true);
@@ -169,7 +169,7 @@ void LocalMapping::Run(std::stop_token stopToken)
         {
             std::unique_lock lock{processMutex};
             processNext.wait(lock, stopToken, [this] {
-                return CheckNewKeyFrames() || stopRequested() || ResetRequested();
+                return CheckNewKeyFrames() || pauseRequested() || ResetRequested();
             });
         }
     }
@@ -197,13 +197,13 @@ void LocalMapping::WakeUp()
 
 bool LocalMapping::InsertKeyFrame(KeyFrame *pKF)
 {
-    // Loop closing changes the map while local mapping is stopped, so the
-    // keyframes it needs processed before the stop are all queued once the
-    // stop is requested.
+    // Loop closing changes the map while local mapping is paused, so the
+    // keyframes it needs processed before the pause are all queued once the
+    // pause is requested.
     {
-        std::scoped_lock lock{mMutexStop, mMutexNewKFs};
+        std::scoped_lock lock{mMutexPause, mMutexNewKFs};
 
-        if (mbStopRequested)
+        if (mbPauseRequested)
             return false;
 
         mlNewKeyFrames.push_back(pKF);
@@ -575,58 +575,58 @@ cv::Mat LocalMapping::ComputeF12(KeyFrame *&pKF1, KeyFrame *&pKF2)
     return K1.t().inv()*t12x*R12*K2.inv();
 }
 
-void LocalMapping::RequestStop()
+void LocalMapping::RequestPause()
 {
     {
-        std::scoped_lock lock{mMutexStop, mMutexNewKFs};
-        mbStopRequested = true;
+        std::scoped_lock lock{mMutexPause, mMutexNewKFs};
+        mbPauseRequested = true;
         mbAbortBA = true;
     }
 
     WakeUp();
 }
 
-bool LocalMapping::Stop()
+bool LocalMapping::Pause()
 {
-    // A release may withdraw the request after the worker saw it, so the
-    // request is checked together with setting the stop.
-    std::scoped_lock lock{mMutexStop, mMutexNewKFs};
+    // A resume may withdraw the request after the worker saw it, so the
+    // request is checked together with pausing.
+    std::scoped_lock lock{mMutexPause, mMutexNewKFs};
 
-    if (!mbStopRequested || !mlNewKeyFrames.empty())
+    if (!mbPauseRequested || !mlNewKeyFrames.empty())
         return false;
 
-    mbStopped = true;
-    stoppedChanged.notify_all();
+    mbPaused = true;
+    pausedChanged.notify_all();
     return true;
 }
 
-bool LocalMapping::isStopped()
+bool LocalMapping::isPaused()
 {
-    std::scoped_lock lock{mMutexStop};
-    return mbStopped;
+    std::scoped_lock lock{mMutexPause};
+    return mbPaused;
 }
 
-bool LocalMapping::stopRequested()
+bool LocalMapping::pauseRequested()
 {
-    std::scoped_lock lock{mMutexStop};
-    return mbStopRequested;
+    std::scoped_lock lock{mMutexPause};
+    return mbPauseRequested;
 }
 
-void LocalMapping::Release()
+void LocalMapping::Resume()
 {
     {
-        std::scoped_lock lock{mMutexStop};
-        mbStopped = false;
-        mbStopRequested = false;
+        std::scoped_lock lock{mMutexPause};
+        mbPaused = false;
+        mbPauseRequested = false;
     }
 
     WakeUp();
 }
 
-bool LocalMapping::WaitUntilStopped(std::stop_token stopToken)
+bool LocalMapping::WaitUntilPaused(std::stop_token stopToken)
 {
-    std::unique_lock lock{mMutexStop};
-    return stoppedChanged.wait(lock, stopToken, [this] { return mbStopped.load(); });
+    std::unique_lock lock{mMutexPause};
+    return pausedChanged.wait(lock, stopToken, [this] { return mbPaused.load(); });
 }
 
 bool LocalMapping::AcceptKeyFrames()

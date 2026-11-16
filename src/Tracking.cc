@@ -823,7 +823,7 @@ bool Tracking::TrackLocalMap()
 bool Tracking::NeedNewKeyFrame()
 {
     // If Local Mapping is freezed by a Loop Closure do not insert keyframes
-    if(mpLocalMapper->isStopped() || mpLocalMapper->stopRequested())
+    if(mpLocalMapper->isPaused() || mpLocalMapper->pauseRequested())
         return false;
 
     // Not insert keyframes if not enough frames from last relocalisation have passed

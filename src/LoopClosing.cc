@@ -454,23 +454,23 @@ bool LoopClosing::ComputeSim3()
 
 void LoopClosing::CorrectLoop(std::stop_token stopToken)
 {
-    // Send a stop signal to Local Mapping
+    // Ask Local Mapping to pause
     // Avoid new keyframes are inserted while correcting the loop
-    mpLocalMapper->RequestStop();
+    mpLocalMapper->RequestPause();
 
-    // Wait until Local Mapping has effectively stopped
+    // Wait until Local Mapping has effectively paused
 #ifdef HAVE_ROS
     ros::Rate r(1e4);
-    while(ros::ok() && !mpLocalMapper->isStopped())
+    while(ros::ok() && !mpLocalMapper->isPaused())
     {
         r.sleep();
     }
 #else
-    if (!mpLocalMapper->WaitUntilStopped(stopToken))
+    if (!mpLocalMapper->WaitUntilPaused(stopToken))
     {
-        // Loop closing ends before local mapping stopped, so the map stays
+        // Loop closing ends before local mapping paused, so the map stays
         // as it is.
-        mpLocalMapper->Release();
+        mpLocalMapper->Resume();
         return;
     }
 #endif // HAVE_ROS
@@ -614,8 +614,8 @@ void LoopClosing::CorrectLoop(std::stop_token stopToken)
 
     std::cout << "Loop Closed!" << std::endl;
 
-    // Loop closed. Release Local Mapping.
-    mpLocalMapper->Release();
+    // Loop closed. Resume Local Mapping.
+    mpLocalMapper->Resume();
 
     mpMap->SetFlagAfterBA();
 
