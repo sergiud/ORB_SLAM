@@ -38,6 +38,7 @@
 #include<iostream>
 #include<fstream>
 #include <format>
+#include <memory>
 #include <ostream>
 #include <ranges>
 #include <stdexcept>
@@ -1064,7 +1065,7 @@ bool Tracking::Relocalisation()
     // If enough matches are found we setup a PnP solver
     ORBmatcher matcher(0.75,true);
 
-    vector<PnPsolver*> vpPnPsolvers;
+    vector<std::unique_ptr<PnPsolver>> vpPnPsolvers;
     vpPnPsolvers.resize(nKFs);
 
     vector<vector<MapPoint*> > vvpMapPointMatches;
@@ -1090,9 +1091,8 @@ bool Tracking::Relocalisation()
             }
             else
             {
-                PnPsolver* pSolver = new PnPsolver(mCurrentFrame,vvpMapPointMatches[i]);
-                pSolver->SetRansacParameters(0.99,10,300,4,0.5,5.991);
-                vpPnPsolvers[i] = pSolver;
+                vpPnPsolvers[i] = std::make_unique<PnPsolver>(mCurrentFrame,vvpMapPointMatches[i]);
+                vpPnPsolvers[i]->SetRansacParameters(0.99,10,300,4,0.5,5.991);
                 nCandidates++;
             }
         }
@@ -1115,7 +1115,7 @@ bool Tracking::Relocalisation()
             int nInliers;
             bool bNoMore;
 
-            PnPsolver* pSolver = vpPnPsolvers[i];
+            PnPsolver* pSolver = vpPnPsolvers[i].get();
             cv::Mat Tcw = pSolver->iterate(5,bNoMore,vbInliers,nInliers);
 
             // If Ransac reachs max. iterations discard keyframe
