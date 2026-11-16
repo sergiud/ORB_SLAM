@@ -93,7 +93,7 @@ public:
     // Variables used by the tracking
     float mTrackProjX;
     float mTrackProjY;
-    bool mbTrackInView;
+    bool mbTrackInView{false};
     int mnTrackScaleLevel;
     float mTrackViewCos;
     long unsigned int mnTrackReferenceForFrame;
@@ -101,7 +101,7 @@ public:
 
     // Variables used by local mapping
     long unsigned int mnBALocalForKF;
-    long unsigned int mnFuseCandidateForKF;
+    long unsigned int mnFuseCandidateForKF{0};
 
     // Variables used by loop closing
     long unsigned int mnLoopPointForKF;

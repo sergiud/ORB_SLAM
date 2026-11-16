@@ -296,6 +296,47 @@ void relocalisationIgnoresUncomparedNeighbors()
                                                        : "neighbor"));
 }
 
+// Fusing map points compares these ids with the id of the current keyframe,
+// so new keyframes and map points start with no keyframe, as do their scores
+// of loop and relocalisation queries. Both are constructed in storage filled
+// with a pattern other than zero, so that members the constructors leave
+// uninitialized show.
+void startsWithoutQueries()
+{
+    ORB_SLAM::tests::Scene scene;
+    const ORB_SLAM::Frame frame =
+        ORB_SLAM::tests::makeFrame(cv::Mat::eye(4, 4, CV_32F));
+
+    alignas(ORB_SLAM::KeyFrame) std::byte keyFrameStorage[sizeof(ORB_SLAM::KeyFrame)];
+    ORB_SLAM::tests::fillWithPattern(keyFrameStorage);
+    ORB_SLAM::Frame copy{frame};
+    auto* const keyFrame = new (keyFrameStorage)
+        ORB_SLAM::KeyFrame{copy, &scene.map(), &scene.database()};
+
+    check(keyFrame->mnFuseTargetForKF == 0 && keyFrame->mnLoopWords == 0 &&
+              keyFrame->mLoopScore == 0 && keyFrame->mnRelocWords == 0 &&
+              keyFrame->mRelocScore == 0,
+          std::format("a keyframe starts without fusion target and query "
+                      "scores, got target {}, loop words {}, loop score {}, "
+                      "relocalisation words {}, relocalisation score {}",
+                      keyFrame->mnFuseTargetForKF, keyFrame->mnLoopWords,
+                      keyFrame->mLoopScore, keyFrame->mnRelocWords,
+                      keyFrame->mRelocScore));
+
+    alignas(ORB_SLAM::MapPoint) std::byte pointStorage[sizeof(ORB_SLAM::MapPoint)];
+    ORB_SLAM::tests::fillWithPattern(pointStorage);
+    auto* const point = new (pointStorage) ORB_SLAM::MapPoint{
+        cv::Mat{cv::Vec3f{0, 0, 1}}, keyFrame, &scene.map()};
+
+    check(point->mnFuseCandidateForKF == 0 && !point->mbTrackInView,
+          std::format("a map point starts without fusion keyframe and outside "
+                      "the view, got keyframe {} and in view {}",
+                      point->mnFuseCandidateForKF, point->mbTrackInView));
+
+    std::destroy_at(point);
+    std::destroy_at(keyFrame);
+}
+
 } // namespace
 
 int main()
@@ -305,6 +346,7 @@ int main()
     erasedKeyFrameStaysDisconnected();
     mapPointsReplacedConcurrently();
     relocalisationIgnoresUncomparedNeighbors();
+    startsWithoutQueries();
 
     return ORB_SLAM::tests::exitStatus();
 }

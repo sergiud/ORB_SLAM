@@ -153,7 +153,7 @@ public:
 
     // Variables used by the tracking
     long unsigned int mnTrackReferenceForFrame;
-    long unsigned int mnFuseTargetForKF;
+    long unsigned int mnFuseTargetForKF{0};
 
     // Variables used by the local mapping
     long unsigned int mnBALocalForKF;
@@ -161,11 +161,11 @@ public:
 
     // Variables used by the keyframe database
     long unsigned int mnLoopQuery;
-    int mnLoopWords;
-    float mLoopScore;
+    int mnLoopWords{0};
+    float mLoopScore{0};
     long unsigned int mnRelocQuery;
-    int mnRelocWords;
-    float mRelocScore;
+    int mnRelocWords{0};
+    float mRelocScore{0};
 
     // Calibration parameters
     float fx, fy, cx, cy;
