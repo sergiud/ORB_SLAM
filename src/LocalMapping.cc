@@ -568,12 +568,24 @@ bool LocalMapping::stopRequested()
 
 void LocalMapping::Release()
 {
-    std::scoped_lock lock{mMutexStop};
-    mbStopped = false;
-    mbStopRequested = false;
-    for(list<KeyFrame*>::iterator lit = mlNewKeyFrames.begin(), lend=mlNewKeyFrames.end(); lit!=lend; lit++)
-        delete *lit;
-    mlNewKeyFrames.clear();
+    {
+        std::scoped_lock lock{mMutexStop};
+        mbStopped = false;
+        mbStopRequested = false;
+        for(list<KeyFrame*>::iterator lit = mlNewKeyFrames.begin(), lend=mlNewKeyFrames.end(); lit!=lend; lit++)
+            delete *lit;
+        mlNewKeyFrames.clear();
+    }
+
+    // The paused worker checks whether it is stopped while holding the
+    // mutex of its wait. Taking that mutex here keeps the notification from
+    // falling between the check and the wait. The worker takes the stop
+    // mutex inside it, so this thread releases the stop mutex first.
+    {
+        std::scoped_lock lock{processMutex};
+    }
+
+    processNext.notify_one();
 }
 
 bool LocalMapping::AcceptKeyFrames()

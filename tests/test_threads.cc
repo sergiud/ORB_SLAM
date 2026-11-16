@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Tests that the worker threads of local mapping and loop closing return
-// once a stop is requested.
+// Tests of the synchronization of the worker threads of local mapping and
+// loop closing with their clients.
 
 #include <chrono>
 #include <cstdlib>
@@ -34,6 +34,23 @@ constexpr auto pollInterval = 1ms;
 // How long a paused worker is watched for resuming on its own.
 constexpr auto pauseObservation = 50ms;
 
+// Polls the predicate until it holds or the deadline passes, and returns
+// whether it holds.
+template<class Predicate>
+bool waitUntil(Predicate predicate)
+{
+    const auto until = std::chrono::steady_clock::now() + deadline;
+
+    bool holds = predicate();
+
+    while (!holds && std::chrono::steady_clock::now() < until) {
+        std::this_thread::sleep_for(pollInterval);
+        holds = predicate();
+    }
+
+    return holds;
+}
+
 // Runs the worker in a thread, waits until it reaches the state the ready
 // predicate describes, requests a stop and checks that the worker returns
 // in time.
@@ -48,16 +65,8 @@ void returnsOnStop(Worker& worker, Ready ready, std::string_view what)
         finished.set_value();
     }};
 
-    const auto readyBy = std::chrono::steady_clock::now() + deadline;
-
-    bool reached = ready();
-
-    while (!reached && std::chrono::steady_clock::now() < readyBy) {
-        std::this_thread::sleep_for(pollInterval);
-        reached = ready();
-    }
-
-    check(reached, std::format("{}: the worker reaches its state", what));
+    check(waitUntil(ready),
+          std::format("{}: the worker reaches its state", what));
 
     thread.request_stop();
 
@@ -118,6 +127,30 @@ void localMappingStaysPaused()
                   "paused local mapping before its release");
 }
 
+// A local mapping that loop closing released accepts keyframes again.
+void localMappingResumesAfterRelease()
+{
+    ORB_SLAM::Map map;
+    ORB_SLAM::LocalMapping localMapping{&map};
+
+    localMapping.SetAcceptKeyFrames(false);
+    localMapping.RequestStop();
+
+    std::jthread thread{[&localMapping](std::stop_token stopToken) {
+        localMapping.Run(stopToken);
+    }};
+
+    check(waitUntil([&localMapping] { return localMapping.isStopped(); }),
+          "local mapping pauses on request");
+
+    localMapping.Release();
+
+    check(waitUntil(
+              [&localMapping] { return localMapping.AcceptKeyFrames(); }),
+          std::format("released local mapping accepts keyframes within {}",
+                      deadline));
+}
+
 // A loop closing that waits for keyframes returns.
 void loopClosingReturnsWhenIdle()
 {
@@ -136,6 +169,7 @@ int main()
     localMappingReturnsWhenIdle();
     localMappingReturnsWhenPaused();
     localMappingStaysPaused();
+    localMappingResumesAfterRelease();
     loopClosingReturnsWhenIdle();
 
     return ORB_SLAM::tests::exitStatus();
