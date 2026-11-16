@@ -633,7 +633,12 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     // Set median depth to 1
     const std::optional<float> medianDepth = pKFini->ComputeSceneMedianDepth(2);
 
-    if(!medianDepth || *medianDepth<0 || pKFcur->TrackedMapPoints()<100)
+    // Fewest map points the second keyframe tracks for a usable initial map.
+    // The rotation check keeps only consistent initial matches, which a noisy
+    // or sparse scene reaches with sound maps of about this size.
+    constexpr int minInitialMapPoints = 80;
+
+    if(!medianDepth || *medianDepth<0 || pKFcur->TrackedMapPoints()<minInitialMapPoints)
     {
         std::println(std::clog, "wrong initialization, reseting...");
         Reset();

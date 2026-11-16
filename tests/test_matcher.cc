@@ -227,6 +227,80 @@ void keyFrameSearch(Side side)
                  "the search in a keyframe");
 }
 
+// Returns an ORB descriptor with the first bits set, which is that many bits
+// away from one of zeros.
+cv::Mat descriptorWithBits(int bits)
+{
+    constexpr int bitsPerByte = 8;
+
+    cv::Mat descriptor = cv::Mat::zeros(1, ORB_SLAM::tests::descriptorBytes, CV_8U);
+    descriptor.colRange(0, bits / bitsPerByte).setTo(0xFF);
+    return descriptor;
+}
+
+// The rotation check of the initialization counts the matches that remain,
+// not those that a better match replaced. Three replaced matches would
+// otherwise outweigh a rotation that two correct matches each share.
+void initializationCountsRemainingMatches()
+{
+    constexpr int window = 10;
+    // Keypoints that compete for the same keypoint, each closer to it than
+    // the one before, so that each replaces the match of the one before.
+    constexpr std::array competingDistances{40, 30, 20, 10};
+    // Rotations of 0, 60, 120 and 180 degrees fall into distinct bins.
+    constexpr std::array rotations{0.0F, 60.0F, 120.0F, 180.0F};
+    constexpr int pairsPerRotation = 2;
+    constexpr float spacing = 100;
+
+    ORB_SLAM::tests::setCamera(cameraMatrix(), width, height);
+
+    std::vector<cv::KeyPoint> first;
+    std::vector<cv::KeyPoint> second;
+    std::vector<cv::Point2f> previous;
+    cv::Mat firstDescriptors;
+    cv::Mat secondDescriptors;
+
+    const cv::Point2f contested{spacing, spacing};
+    second.emplace_back(contested, 1.0F, 0.0F);
+    secondDescriptors.push_back(descriptorWithBits(0));
+
+    for (const int distance : competingDistances) {
+        first.emplace_back(contested, 1.0F, rotations[0]);
+        previous.push_back(contested);
+        firstDescriptors.push_back(descriptorWithBits(distance));
+    }
+
+    for (std::size_t r = 1; r < rotations.size(); ++r) {
+        for (int p = 0; p < pairsPerRotation; ++p) {
+            const cv::Point2f at{spacing * (2 + p), spacing * r};
+            first.emplace_back(at, 1.0F, rotations[r]);
+            second.emplace_back(at, 1.0F, 0.0F);
+            previous.push_back(at);
+            firstDescriptors.push_back(descriptorWithBits(0));
+            secondDescriptors.push_back(descriptorWithBits(0));
+        }
+    }
+
+    ORB_SLAM::Frame firstFrame = ORB_SLAM::tests::makeFrame(
+        cv::Mat::eye(4, 4, CV_32F), cameraMatrix(), first, pyramid,
+        firstDescriptors);
+    ORB_SLAM::Frame secondFrame = ORB_SLAM::tests::makeFrame(
+        cv::Mat::eye(4, 4, CV_32F), cameraMatrix(), second, pyramid,
+        secondDescriptors);
+
+    ORB_SLAM::ORBmatcher matcher{0.9F, /*checkOri=*/true};
+    std::vector<int> matches;
+    const int matched = matcher.SearchForInitialization(
+        firstFrame, secondFrame, previous, matches, window);
+
+    const int expected = (rotations.size() - 1) * pairsPerRotation;
+
+    check(matched == expected,
+          std::format("the {} matches of the three common rotations remain, "
+                      "got {}",
+                      expected, matched));
+}
+
 } // namespace
 
 int main()
@@ -234,6 +308,8 @@ int main()
     rotationsReachEveryBin();
     smallRotationsShareBin();
     rotationsByBinWidthAreNeighbors();
+    initializationCountsRemainingMatches();
+
     for (const Side side : {Side::front, Side::behind, Side::center}) {
         lastFrameSearch(side);
         windowSearch(side);

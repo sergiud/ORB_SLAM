@@ -647,11 +647,6 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
                 vnMatches21[bestIdx2]=i1;
                 vMatchedDistance[bestIdx2]=bestDist;
                 nmatches++;
-
-                if(mbCheckOrientation)
-                {
-                    rotHist[RotationBin(F1.mvKeysUn[i1].angle,F2.mvKeysUn[bestIdx2].angle)].push_back(i1);
-                }
             }
         }
 
@@ -659,6 +654,14 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
 
     if(mbCheckOrientation)
     {
+        // Only the matches that remain count, not those a better match of
+        // the same keypoint replaced.
+        for(size_t i1=0, iend1=vnMatches12.size(); i1<iend1; i1++)
+        {
+            if(vnMatches12[i1]>=0)
+                rotHist[RotationBin(F1.mvKeysUn[i1].angle,F2.mvKeysUn[vnMatches12[i1]].angle)].push_back(i1);
+        }
+
         int ind1=-1;
         int ind2=-1;
         int ind3=-1;
