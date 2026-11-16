@@ -184,10 +184,47 @@ void areaSearchFindsKeyPointsNearEdges()
     }
 }
 
+// An image too small for the coarser pyramid levels yields the features of
+// the levels that fit, rather than failing in OpenCV.
+void extractsFromSmallImage(int imageWidth, int imageHeight)
+{
+    cv::Mat noise(imageHeight, imageWidth, CV_8U);
+    cv::RNG generator;
+    generator.fill(noise, cv::RNG::UNIFORM, 0, 256);
+
+    ORB_SLAM::ORBextractor extractor{features, scaleFactor, levels, fastScore,
+                                     fastThreshold};
+    std::vector<cv::KeyPoint> keyPoints;
+    cv::Mat descriptors;
+
+    try {
+        extractor(noise, cv::Mat{}, keyPoints, descriptors);
+    }
+    catch (const cv::Exception& e) {
+        check(false, std::format("a {}x{} image yields features, got {:?}",
+                                 imageWidth, imageHeight, e.what()));
+        return;
+    }
+
+    check(descriptors.rows == static_cast<int>(keyPoints.size()),
+          std::format("a {}x{} image yields a descriptor for each of its {} "
+                      "keypoints, got {}",
+                      imageWidth, imageHeight, keyPoints.size(),
+                      descriptors.rows));
+}
+
 } // namespace
 
 int main()
 {
+    constexpr int smallWidth = 64;
+    constexpr int smallHeight = 48;
+    constexpr int tinySide = 40;
+
+    extractsFromSmallImage(smallWidth, smallHeight);
+    extractsFromSmallImage(tinySide, tinySide);
+    extractsFromSmallImage(width, tinySide);
+    extractsFromSmallImage(tinySide, width);
     areaSearchFindsKeyPointsNearEdges();
     retainsRequestedFeatures();
     constexpr int levelFeatures = 400;

@@ -557,6 +557,11 @@ void ORBextractor::ComputeKeyPoints(vector<vector<KeyPoint> >& allKeypoints)
 
         const int W = maxBorderX - minBorderX;
         const int H = maxBorderY - minBorderY;
+
+        // A level smaller than its border has no pixels to detect in.
+        if(W<=0 || H<=0)
+            continue;
+
         const int cellW = ceil((float)W/levelCols);
         const int cellH = ceil((float)H/levelRows);
 
