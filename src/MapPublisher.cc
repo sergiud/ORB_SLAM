@@ -128,12 +128,15 @@ void MapPublisher::Refresh()
     }
     if(mpMap->isMapUpdated())
     {
+#ifdef HAVE_ROS
+        // Only ROS has somewhere to publish the map to.
         vector<KeyFrame*> vKeyFrames = mpMap->GetAllKeyFrames();
         vector<MapPoint*> vMapPoints = mpMap->GetAllMapPoints();
         vector<MapPoint*> vRefMapPoints = mpMap->GetReferenceMapPoints();
 
         PublishMapPoints(vMapPoints, vRefMapPoints);
         PublishKeyFrames(vKeyFrames);
+#endif // HAVE_ROS
 
         mpMap->ResetUpdated();
     }
