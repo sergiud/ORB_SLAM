@@ -912,7 +912,7 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
         e21->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(id1)));
         e21->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(0)));
         e21->setMeasurement(obs2);
-        float invSigmaSquare2 = pKF2->GetSigma2(kpUn2.octave);
+        float invSigmaSquare2 = pKF2->GetInvSigma2(kpUn2.octave);
         e21->setInformation(Eigen::Matrix2d::Identity()*invSigmaSquare2);
 
         g2o::RobustKernelHuber* rk2 = new g2o::RobustKernelHuber;
