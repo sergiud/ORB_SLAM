@@ -635,6 +635,9 @@ void ORBextractor::ComputeKeyPoints(vector<vector<KeyPoint> >& allKeypoints)
                     FAST(cellImage,cellKeyPoints[i][j],7,true);
                 }
 
+                if(!cellMask.empty())
+                    KeyPointsFilter::runByPixelsMask(cellKeyPoints[i][j],cellMask);
+
                 if( scoreType == ORB::HARRIS_SCORE )
                 {
                     // Compute the Harris cornerness

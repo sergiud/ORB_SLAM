@@ -213,10 +213,42 @@ void extractsFromSmallImage(int imageWidth, int imageHeight)
                       descriptors.rows));
 }
 
+// The extractor detects features only where the mask allows them.
+void extractsWithinMask()
+{
+    // Downscaling the mask to the coarsest level moves its edge by up to a
+    // pixel of that level, 1.2^7 = 3.6 pixels of the image.
+    constexpr float edgeTolerance = 4;
+
+    cv::Mat noise(height, width, CV_8U);
+    cv::RNG generator;
+    generator.fill(noise, cv::RNG::UNIFORM, 0, 256);
+
+    cv::Mat mask = cv::Mat::zeros(height, width, CV_8U);
+    mask.colRange(width / 2, width).setTo(1);
+
+    ORB_SLAM::ORBextractor extractor{features, scaleFactor, levels, fastScore,
+                                     fastThreshold};
+    std::vector<cv::KeyPoint> keyPoints;
+    cv::Mat descriptors;
+    extractor(noise, mask, keyPoints, descriptors);
+
+    const auto outside = std::ranges::count_if(
+        keyPoints, [](const cv::KeyPoint& k) {
+            return k.pt.x < width / 2.0F - edgeTolerance;
+        });
+
+    check(!keyPoints.empty() && outside == 0,
+          std::format("the {} keypoints lie where the mask allows them, got {} "
+                      "outside",
+                      keyPoints.size(), outside));
+}
+
 } // namespace
 
 int main()
 {
+    extractsWithinMask();
     constexpr int smallWidth = 64;
     constexpr int smallHeight = 48;
     constexpr int tinySide = 40;
