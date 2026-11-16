@@ -379,6 +379,46 @@ void bundleAdjustmentInterruptedConcurrently()
     }
 }
 
+// Exposes the loop candidates that loop closing keeps between keyframes.
+class CandidateLoopClosing : public ORB_SLAM::LoopClosing
+{
+public:
+    using ORB_SLAM::LoopClosing::LoopClosing;
+    using ORB_SLAM::LoopClosing::ResetIfRequested;
+    using ORB_SLAM::LoopClosing::mbResetRequested;
+    using ORB_SLAM::LoopClosing::mpMatchedKF;
+    using ORB_SLAM::LoopClosing::mvConsistentGroups;
+    using ORB_SLAM::LoopClosing::mvpEnoughConsistentCandidates;
+};
+
+// A reset destroys every keyframe, so loop closing keeps no loop candidate
+// across it, which a new keyframe at the same address would match.
+void loopClosingForgetsCandidatesOnReset()
+{
+    ORB_SLAM::Map map;
+    ORB_SLAM::ORBVocabulary vocabulary;
+    ORB_SLAM::KeyFrameDatabase database{vocabulary};
+    CandidateLoopClosing loopClosing{&map, &database, &vocabulary};
+    const auto keyFrame = makeKeyFrame(map);
+
+    loopClosing.mvConsistentGroups.emplace_back(
+        std::set<ORB_SLAM::KeyFrame*>{keyFrame.get()}, 1);
+    loopClosing.mvpEnoughConsistentCandidates.push_back(keyFrame.get());
+    loopClosing.mpMatchedKF = keyFrame.get();
+    loopClosing.mbResetRequested = true;
+
+    loopClosing.ResetIfRequested();
+
+    check(loopClosing.mvConsistentGroups.empty() &&
+              loopClosing.mvpEnoughConsistentCandidates.empty() &&
+              loopClosing.mpMatchedKF == nullptr,
+          std::format("loop closing keeps no candidate after a reset, got {} "
+                      "groups, {} candidates and {} matched keyframe",
+                      loopClosing.mvConsistentGroups.size(),
+                      loopClosing.mvpEnoughConsistentCandidates.size(),
+                      loopClosing.mpMatchedKF ? "a" : "no"));
+}
+
 // A reset request returns once the worker reset, also if the worker resets
 // right after the request. The test resets in a tight loop in place of the
 // worker thread, which makes that order likely.
@@ -456,6 +496,7 @@ int main()
     waitForLocalMappingEndsOnStopRequest();
     loopCorrectionWaitsForLocalMapping();
     bundleAdjustmentInterruptedConcurrently();
+    loopClosingForgetsCandidatesOnReset();
     loopClosingReturnsWhenIdle();
     localMappingResetReturns();
     loopClosingResetReturns();

@@ -646,6 +646,10 @@ void LoopClosing::ResetIfRequested()
     {
         std::scoped_lock lock{mMutexLoopQueue};
         mlpLoopKeyFrameQueue.clear();
+        // The reset destroys the keyframes the candidates refer to.
+        mvConsistentGroups.clear();
+        mvpEnoughConsistentCandidates.clear();
+        mpMatchedKF = NULL;
         mLastLoopKFid=0;
         mbResetRequested=false;
         resetDone.notify_one();
