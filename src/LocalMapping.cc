@@ -23,7 +23,6 @@
 #include "ORBmatcher.h"
 #include "Optimizer.h"
 
-#include <chrono>
 #include <mutex>
 #include <optional>
 #include <stop_token>
@@ -168,10 +167,31 @@ void LocalMapping::Run(std::stop_token stopToken)
 
         {
             std::unique_lock lock{processMutex};
-            processNext.wait_for(lock, std::chrono::milliseconds{2});
+            processNext.wait(lock, stopToken, [this] {
+                return CheckNewKeyFrames() || stopRequested() || ResetRequested();
+            });
         }
     }
 #endif // HAVE_ROS
+}
+
+bool LocalMapping::ResetRequested()
+{
+    std::scoped_lock lock{mMutexReset};
+    return mbResetRequested;
+}
+
+void LocalMapping::WakeUp()
+{
+    // The worker checks for work while holding the mutex of its wait.
+    // Taking that mutex here keeps the notification from falling between
+    // the check and the wait. The worker takes the other mutexes inside it,
+    // so the caller holds none of them.
+    {
+        std::scoped_lock lock{processMutex};
+    }
+
+    processNext.notify_one();
 }
 
 bool LocalMapping::InsertKeyFrame(KeyFrame *pKF)
@@ -179,14 +199,18 @@ bool LocalMapping::InsertKeyFrame(KeyFrame *pKF)
     // Loop closing changes the map while local mapping is stopped, so the
     // keyframes it needs processed before the stop are all queued once the
     // stop is requested.
-    std::scoped_lock lock{mMutexStop, mMutexNewKFs};
+    {
+        std::scoped_lock lock{mMutexStop, mMutexNewKFs};
 
-    if (mbStopRequested)
-        return false;
+        if (mbStopRequested)
+            return false;
 
-    mlNewKeyFrames.push_back(pKF);
-    mbAbortBA=true;
-    SetAcceptKeyFrames(false);
+        mlNewKeyFrames.push_back(pKF);
+        mbAbortBA=true;
+        SetAcceptKeyFrames(false);
+    }
+
+    WakeUp();
     return true;
 }
 
@@ -552,11 +576,13 @@ cv::Mat LocalMapping::ComputeF12(KeyFrame *&pKF1, KeyFrame *&pKF2)
 
 void LocalMapping::RequestStop()
 {
-    std::scoped_lock lock{mMutexStop};
-    mbStopRequested = true;
-    std::scoped_lock lock2{mMutexNewKFs};
-    mbAbortBA = true;
-    processNext.notify_one();
+    {
+        std::scoped_lock lock{mMutexStop, mMutexNewKFs};
+        mbStopRequested = true;
+        mbAbortBA = true;
+    }
+
+    WakeUp();
 }
 
 bool LocalMapping::Stop()
@@ -593,15 +619,7 @@ void LocalMapping::Release()
         mbStopRequested = false;
     }
 
-    // The paused worker checks whether it is stopped while holding the
-    // mutex of its wait. Taking that mutex here keeps the notification from
-    // falling between the check and the wait. The worker takes the stop
-    // mutex inside it, so this thread releases the stop mutex first.
-    {
-        std::scoped_lock lock{processMutex};
-    }
-
-    processNext.notify_one();
+    WakeUp();
 }
 
 bool LocalMapping::WaitUntilStopped(std::stop_token stopToken)
@@ -709,11 +727,11 @@ void LocalMapping::RequestReset()
         r.sleep();
     }
 #else
+    WakeUp();
+
     std::unique_lock lock2{mMutexReset};
     // The worker may have reset already, before this thread waits.
     resetDone.wait(lock2, [this] { return !mbResetRequested; });
-
-    processNext.notify_one();
 #endif // HAVE_ROS
 }
 

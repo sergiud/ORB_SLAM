@@ -88,6 +88,11 @@ protected:
     cv::Mat SkewSymmetricMatrix(const cv::Mat &v);
 
     void ResetIfRequested();
+    bool ResetRequested();
+
+    //! Wakes the worker up to look for work.
+    void WakeUp();
+
     bool mbResetRequested;
     std::mutex mMutexReset;
 

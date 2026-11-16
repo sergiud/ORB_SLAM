@@ -30,7 +30,6 @@
 
 #include "ORBmatcher.h"
 
-#include <chrono>
 #include <mutex>
 #include <stop_token>
 
@@ -108,16 +107,42 @@ void LoopClosing::Run(std::stop_token stopToken)
         ResetIfRequested();
 
         std::unique_lock lock{processMutex};
-        processNext.wait_for(lock, std::chrono::milliseconds{5});
+        processNext.wait(lock, stopToken, [this] {
+            return CheckNewKeyFrames() || ResetRequested();
+        });
     }
 #endif // HAVE_ROS
 }
 
+bool LoopClosing::ResetRequested()
+{
+    std::scoped_lock lock{mMutexReset};
+    return mbResetRequested;
+}
+
+void LoopClosing::WakeUp()
+{
+    // The worker checks for work while holding the mutex of its wait.
+    // Taking that mutex here keeps the notification from falling between
+    // the check and the wait.
+    {
+        std::scoped_lock lock{processMutex};
+    }
+
+    processNext.notify_one();
+}
+
 void LoopClosing::InsertKeyFrame(KeyFrame *pKF)
 {
-    std::scoped_lock lock{mMutexLoopQueue};
-    if(pKF->mnId!=0)
+    if(pKF->mnId==0)
+        return;
+
+    {
+        std::scoped_lock lock{mMutexLoopQueue};
         mlpLoopKeyFrameQueue.push_back(pKF);
+    }
+
+    WakeUp();
 }
 
 bool LoopClosing::CheckNewKeyFrames()
@@ -631,11 +656,11 @@ void LoopClosing::RequestReset()
         r.sleep();
     }
 #else
+    WakeUp();
+
     std::unique_lock lock2{mMutexReset};
     // The worker may have reset already, before this thread waits.
     resetDone.wait(lock2, [this] { return !mbResetRequested; });
-
-    processNext.notify_one();
 #endif // HAVE_ROS
 }
 

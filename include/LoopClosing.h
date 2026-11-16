@@ -78,6 +78,11 @@ protected:
 
     void CorrectLoop(std::stop_token stopToken);
 
+    bool ResetRequested();
+
+    //! Wakes the worker up to look for work.
+    void WakeUp();
+
     void ResetIfRequested();
     bool mbResetRequested;
     std::mutex mMutexReset;
