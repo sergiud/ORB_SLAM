@@ -5,6 +5,7 @@
 // Tests of the synchronization of the worker threads of local mapping and
 // loop closing with their clients.
 
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <format>
@@ -33,6 +34,9 @@ constexpr auto deadline = 10s;
 constexpr auto pollInterval = 1ms;
 // How long a paused worker is watched for resuming on its own.
 constexpr auto pauseObservation = 50ms;
+// Enough requests that one of them meets the worker resetting right after
+// the request, before the client waits.
+constexpr int resetRequests = 1000;
 
 // Polls the predicate until it holds or the deadline passes, and returns
 // whether it holds.
@@ -50,6 +54,16 @@ bool waitUntil(Predicate predicate)
 
     return holds;
 }
+
+// Exposes the reset step of a worker loop, so that a test runs it in place
+// of the worker thread.
+template<class Worker>
+class ResettingWorker : public Worker
+{
+public:
+    using Worker::Worker;
+    using Worker::ResetIfRequested;
+};
 
 // Runs the worker in a thread, waits until it reaches the state the ready
 // predicate describes, requests a stop and checks that the worker returns
@@ -151,6 +165,56 @@ void localMappingResumesAfterRelease()
                       deadline));
 }
 
+// A reset request returns once the worker reset, also if the worker resets
+// right after the request. The test resets in a tight loop in place of the
+// worker thread, which makes that order likely.
+template<class Worker>
+void resetRequestReturns(Worker& worker, std::string_view what)
+{
+    for (int i = 0; i < resetRequests; ++i) {
+        std::atomic<bool> returned{false};
+
+        std::jthread requester{[&worker, &returned] {
+            worker.RequestReset();
+            returned = true;
+        }};
+
+        const auto until = std::chrono::steady_clock::now() + deadline;
+
+        while (!returned && std::chrono::steady_clock::now() < until) {
+            worker.ResetIfRequested();
+        }
+
+        if (!returned) {
+            std::println(stderr,
+                         "FAIL: {}: reset request {} still waits {} after "
+                         "the request",
+                         what, i, deadline);
+            // The requester cannot be joined, so the test ends here.
+            std::_Exit(EXIT_FAILURE);
+        }
+    }
+}
+
+void localMappingResetReturns()
+{
+    ORB_SLAM::Map map;
+    ResettingWorker<ORB_SLAM::LocalMapping> localMapping{&map};
+
+    resetRequestReturns(localMapping, "local mapping");
+}
+
+void loopClosingResetReturns()
+{
+    ORB_SLAM::Map map;
+    ORB_SLAM::ORBVocabulary vocabulary;
+    ORB_SLAM::KeyFrameDatabase database{vocabulary};
+    ResettingWorker<ORB_SLAM::LoopClosing> loopClosing{&map, &database,
+                                                       &vocabulary};
+
+    resetRequestReturns(loopClosing, "loop closing");
+}
+
 // A loop closing that waits for keyframes returns.
 void loopClosingReturnsWhenIdle()
 {
@@ -171,6 +235,8 @@ int main()
     localMappingStaysPaused();
     localMappingResumesAfterRelease();
     loopClosingReturnsWhenIdle();
+    localMappingResetReturns();
+    loopClosingResetReturns();
 
     return ORB_SLAM::tests::exitStatus();
 }

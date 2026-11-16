@@ -623,7 +623,8 @@ void LoopClosing::RequestReset()
     }
 #else
     std::unique_lock lock2{mMutexReset};
-    resetDone.wait(lock2);
+    // The worker may have reset already, before this thread waits.
+    resetDone.wait(lock2, [this] { return !mbResetRequested; });
 
     processNext.notify_one();
 #endif // HAVE_ROS
