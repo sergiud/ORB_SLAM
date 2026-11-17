@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: macOS
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{matrix.os}}-AppleClang-${{matrix.build_type}}
+    runs-on: ${{matrix.os}}
+    defaults:
+      run:
+        shell: bash
+    env:
+      CMAKE_GENERATOR: Ninja
+    strategy:
+      fail-fast: true
+      matrix:
+        build_type: [Debug, Release]
+        os: [macos-26, macos-26-intel]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Dependencies
+        id: setup-dependencies
+        run: |
+          brew install \
+            boost \
+            eigen \
+            opencv
+          echo "eigen=$(brew list --versions eigen | tr ' ' '-')" >> "$GITHUB_OUTPUT"
+
+      # ng-log fails to configure with CMake 4.5, so the job builds with the
+      # most recent CMake 4.4 and its Ninja.
+      - name: Setup CMake
+        uses: lukka/get-cmake@v4.5.0
+        with:
+          cmakeVersion: "~4.4.0"
+
+      # The g2o of Homebrew is a release whose interface ORB-SLAM does not use.
+      # g2o compiles against the Eigen of Homebrew, whose version is therefore
+      # part of the key.
+      - name: Cache Dependencies
+        id: cache-dependencies
+        uses: actions/cache@v6
+        with:
+          path: deps/
+          key: ${{matrix.os}}-dependencies-${{steps.setup-dependencies.outputs.eigen}}-${{hashFiles('.github/scripts/build-dependencies.cmake')}}
+
+      - name: Build Dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          cmake -D PREFIX=deps \
+                -D BUILD_TYPE=Release \
+                -D 'PACKAGES=g2o;ng-log' \
+                -P .github/scripts/build-dependencies.cmake
+
+      - name: Setup Compiler Cache
+        uses: hendrikmuhs/ccache-action@v1.2.25
+        with:
+          key: ${{matrix.os}}-${{matrix.build_type}}
+          evict-old-files: job
+          save: ${{ github.event_name == 'push' }}
+
+      - name: Configure
+        run: |
+          cmake -S . -B build/ \
+                -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_PREFIX_PATH="$PWD/deps" \
+                -Werror=dev
+
+      - name: Build
+        run: |
+          cmake --build build/
+
+      - name: Test
+        run: |
+          ctest --test-dir build/ \
+                -j"$(sysctl -n hw.ncpu)" \
+                --output-on-failure

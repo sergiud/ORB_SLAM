@@ -1,0 +1,218 @@
+# SPDX-FileCopyrightText: 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Windows
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  build-msvc:
+    name: ${{matrix.msvc}}-${{matrix.arch}}-${{matrix.build_type}}
+    runs-on: ${{matrix.os}}
+    defaults:
+      run:
+        shell: powershell
+    env:
+      CMAKE_GENERATOR: ${{matrix.generator}}
+      CMAKE_GENERATOR_PLATFORM: ${{matrix.arch}}
+    strategy:
+      fail-fast: true
+      matrix:
+        arch: [arm64, x64]
+        build_type: [Debug, Release]
+        msvc: [VS-18-2026]
+        include:
+          - msvc: VS-18-2026
+            generator: 'Visual Studio 18 2026'
+          - arch: arm64
+            os: windows-11-vs2026-arm
+          - arch: x64
+            os: windows-2025-vs2026
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # ng-log fails to configure with CMake 4.5, so the job builds with the
+      # most recent CMake 4.4 and its Ninja.
+      - name: Setup CMake
+        uses: lukka/get-cmake@v4.5.0
+        with:
+          cmakeVersion: "~4.4.0"
+
+      # The debug and the release runtime of MSVC do not mix, so every build
+      # type has dependencies of its own.
+      - name: Cache Dependencies
+        id: cache-dependencies
+        uses: actions/cache@v6
+        with:
+          path: deps/
+          key: ${{matrix.os}}-${{matrix.msvc}}-dependencies-${{matrix.build_type}}-${{hashFiles('.github/scripts/build-dependencies.cmake')}}
+
+      - name: Build Dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          cmake -D PREFIX=deps `
+                -D BUILD_TYPE=${{matrix.build_type}} `
+                -D 'PACKAGES=Boost;Eigen3;g2o;ng-log;OpenCV' `
+                -P .github/scripts/build-dependencies.cmake
+
+      - name: Setup Runtime Environment
+        run: |
+          echo "${{github.workspace}}/deps/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      # The ccache that ships with the runner image is too old to cache
+      # these builds.
+      - name: Setup Compiler Cache
+        uses: hendrikmuhs/ccache-action@v1.2.25
+        with:
+          install: binary
+          key: ${{matrix.os}}-${{matrix.msvc}}-${{matrix.build_type}}
+          evict-old-files: job
+          save: ${{ github.event_name == 'push' }}
+
+      # The Visual Studio generator ignores compiler launchers. MSBuild runs
+      # cl.exe from CLToolPath, where a copy of ccache named cl.exe forwards to
+      # the actual compiler.
+      - name: Setup Compiler Launcher
+        run: |
+          $launcher = Join-Path $env:RUNNER_TEMP ccache-msvc
+          New-Item -ItemType Directory -Force -Path $launcher | Out-Null
+          Copy-Item (Get-Command ccache).Source (Join-Path $launcher cl.exe)
+          echo "VS_GLOBALS=CLToolExe=cl.exe;CLToolPath=$launcher;UseMultiToolTask=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      # ccache caches only objects whose debug information they embed.
+      - name: Configure
+        run: |
+          cmake -S . -B build/ `
+                -DCMAKE_CONFIGURATION_TYPES=${{matrix.build_type}} `
+                -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded `
+                -DCMAKE_PREFIX_PATH=${{github.workspace}}/deps `
+                "-DCMAKE_VS_GLOBALS=$env:VS_GLOBALS" `
+                -Werror=dev
+
+      - name: Build
+        run: |
+          cmake --build build/ `
+                --config ${{matrix.build_type}}
+
+      - name: Test
+        run: |
+          ctest --test-dir build/ `
+                --build-config ${{matrix.build_type}} `
+                -j $env:NUMBER_OF_PROCESSORS `
+                --output-on-failure
+
+  build-mingw:
+    name: ${{matrix.sys}}-${{matrix.build_type}}
+    runs-on: ${{matrix.os}}
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      CMAKE_GENERATOR: Ninja
+    strategy:
+      fail-fast: true
+      matrix:
+        build_type: [Debug, Release]
+        sys: [clangarm64, ucrt64]
+        include:
+          - sys: clangarm64
+            pkg: clang-aarch64
+            os: windows-11-arm
+          - sys: ucrt64
+            pkg: ucrt-x86_64
+            os: windows-2025
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{matrix.sys}}
+          update: true
+          install: >-
+            mingw-w64-${{matrix.pkg}}-boost
+            mingw-w64-${{matrix.pkg}}-cc
+            mingw-w64-${{matrix.pkg}}-cmake
+            mingw-w64-${{matrix.pkg}}-eigen3
+            mingw-w64-${{matrix.pkg}}-ninja
+            mingw-w64-${{matrix.pkg}}-opencv
+
+      - name: Setup Dependency Versions
+        id: setup-dependencies
+        run: |
+          echo "eigen=$(pacman -Q mingw-w64-${{matrix.pkg}}-eigen3 | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+
+      # ng-log fails to configure with CMake 4.5, so the dependencies build
+      # with the most recent CMake 4.4. The MSYS2 shell does not inherit PATH,
+      # so the dependency build names CMake by its location, while ORB-SLAM
+      # builds with the CMake of MSYS2.
+      - name: Setup CMake
+        uses: lukka/get-cmake@v4.5.0
+        with:
+          cmakeVersion: "~4.4.0"
+
+      - name: Setup Dependency CMake
+        shell: powershell
+        run: |
+          $cmake = (Get-Command cmake).Source -replace '\\', '/'
+          echo "DEPENDENCY_CMAKE=$cmake" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      # MSYS2 provides no g2o. g2o compiles against the Eigen of MSYS2, whose
+      # version is therefore part of the key.
+      - name: Cache Dependencies
+        id: cache-dependencies
+        uses: actions/cache@v6
+        with:
+          path: deps/
+          key: ${{matrix.os}}-${{matrix.sys}}-dependencies-${{steps.setup-dependencies.outputs.eigen}}-${{hashFiles('.github/scripts/build-dependencies.cmake')}}
+
+      - name: Build Dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          "$DEPENDENCY_CMAKE" -D PREFIX=deps \
+                -D BUILD_TYPE=Release \
+                -D 'PACKAGES=g2o;ng-log' \
+                -P .github/scripts/build-dependencies.cmake
+
+      # The ccache that ships with the runner image is too old to cache
+      # these builds.
+      - name: Setup Compiler Cache
+        uses: hendrikmuhs/ccache-action@v1.2.25
+        with:
+          install: binary
+          key: ${{matrix.os}}-${{matrix.sys}}-${{matrix.build_type}}
+          evict-old-files: job
+          save: ${{ github.event_name == 'push' }}
+
+      # The MSYS2 shell does not inherit PATH, so name ccache by its location.
+      - name: Setup Compiler Launcher
+        shell: powershell
+        run: |
+          $ccache = (Get-Command ccache).Source -replace '\\', '/'
+          echo "CCACHE=$ccache" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure
+        run: |
+          cmake -S . -B build/ \
+                -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+                -DCMAKE_C_COMPILER_LAUNCHER="$CCACHE" \
+                -DCMAKE_CXX_COMPILER_LAUNCHER="$CCACHE" \
+                -DCMAKE_PREFIX_PATH="$PWD/deps" \
+                -Werror=dev
+
+      - name: Build
+        run: |
+          cmake --build build/
+
+      # The MSYS2 shell ignores the PATH of the job, so the DLLs of the
+      # dependencies join it here.
+      - name: Test
+        run: |
+          PATH="$PWD/deps/bin:$PATH" ctest --test-dir build/ \
+                -j"$(nproc)" \
+                --output-on-failure

@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# Keeps the actions of the workflows up to date. The dependencies that the
+# workflows build from source are pinned in scripts/build-dependencies.cmake,
+# which Dependabot does not read.
+
+version: 2
+updates:
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
