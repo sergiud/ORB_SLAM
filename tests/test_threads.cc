@@ -19,7 +19,9 @@
 #include <thread>
 #include <tuple>
 
+#if __has_include(<sys/resource.h>)
 #include <sys/resource.h>
+#endif // __has_include(<sys/resource.h>)
 
 #include <opencv2/core.hpp>
 
@@ -510,6 +512,8 @@ void localMappingResetsWhileInserting()
     done = true;
 }
 
+// Windows reports no voluntary context switches of a process.
+#if __has_include(<sys/resource.h>)
 // Returns the voluntary context switches of the process so far.
 long voluntarySwitches()
 {
@@ -551,6 +555,7 @@ void idleWorkersSleep()
           std::format("idle workers switch at most {} times in {}, got {}",
                       maxSwitches, idle, switches));
 }
+#endif // __has_include(<sys/resource.h>)
 
 // Fails the test and ends it unless the future becomes ready in time, since
 // the thread behind it cannot be joined then.
@@ -785,7 +790,9 @@ int main()
     loopClosingForgetsLoopOnReset();
     localMappingResetsWhileInserting();
     localMappingForgetsKeyFrameOnReset();
+#if __has_include(<sys/resource.h>)
     idleWorkersSleep();
+#endif // __has_include(<sys/resource.h>)
     idleLocalMappingPauses();
     idleWorkersReset();
     idleLocalMappingProcessesKeyFrame();
