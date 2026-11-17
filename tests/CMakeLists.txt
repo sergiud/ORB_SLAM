@@ -49,6 +49,18 @@ set_tests_properties (ORB_SLAM/cli/path-with-spaces PROPERTIES
   PASS_REGULAR_EXPRESSION "${_log_I}reading vocabulary \"dir with spaces/vocabulary.txt\""
   TIMEOUT 60)
 
+# The version information names every copyright holder of the program.
+add_test (NAME ORB_SLAM/cli/version COMMAND run_ORB_SLAM --version)
+set_tests_properties (ORB_SLAM/cli/version PROPERTIES
+  PASS_REGULAR_EXPRESSION "Copyright \\(C\\) 2014 Raúl Mur-Artal\nCopyright \\(C\\) 2015-2026 Sergiu Deitsch\n"
+  TIMEOUT 60)
+
+# The help points to the issue tracker of the project for bug reports.
+add_test (NAME ORB_SLAM/cli/help COMMAND run_ORB_SLAM --help)
+set_tests_properties (ORB_SLAM/cli/help PROPERTIES
+  PASS_REGULAR_EXPRESSION "Report bugs to: <https://github\\.com/sergiud/ORB_SLAM/issues>\n"
+  TIMEOUT 60)
+
 # An invalid command line ends the program with an error message, not an
 # uncaught exception.
 foreach (_case

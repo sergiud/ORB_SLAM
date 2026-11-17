@@ -58,7 +58,8 @@ constexpr double millisecondsPerSecond = 1000;
 
 const char* const banner =
     "ORB SLAM\n"
-    "Copyright (C) 2015 Sergiu Dotenco\n"
+    "Copyright (C) 2014 Raúl Mur-Artal\n"
+    "Copyright (C) 2015-2026 Sergiu Deitsch\n"
     "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
     "This is free software: you are free to change and redistribute it.\n"
     "There is NO WARRANTY, to the extent permitted by law.\n"
@@ -82,7 +83,7 @@ void help(const boost::program_options::options_description& desc)
 
     std::cout <<
         "\n"
-        "Report bugs to: sergiu.dotenco@th-nuernberg.de\n"
+        "Report bugs to: <https://github.com/sergiud/ORB_SLAM/issues>\n"
         //"pkg home page: <http://www.gnu.org/software/pkg/>"
         "General help using GNU software: <http://www.gnu.org/gethelp/>\n"
         ;
