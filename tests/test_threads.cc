@@ -31,6 +31,7 @@
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "Map.h"
+#include "MapPoint.h"
 #include "ORBVocabulary.h"
 
 namespace {
@@ -389,6 +390,10 @@ public:
     using ORB_SLAM::LoopClosing::mpMatchedKF;
     using ORB_SLAM::LoopClosing::mvConsistentGroups;
     using ORB_SLAM::LoopClosing::mvpEnoughConsistentCandidates;
+    using ORB_SLAM::LoopClosing::mpCurrentKF;
+    using ORB_SLAM::LoopClosing::mvpCurrentConnectedKFs;
+    using ORB_SLAM::LoopClosing::mvpCurrentMatchedPoints;
+    using ORB_SLAM::LoopClosing::mvpLoopMapPoints;
 };
 
 // A reset destroys every keyframe, so loop closing keeps no loop candidate
@@ -419,6 +424,36 @@ void loopClosingForgetsCandidatesOnReset()
                       loopClosing.mpMatchedKF ? "a" : "no"));
 }
 
+// Loop closing keeps no keyframe or map point across a reset, which destroys
+// them all.
+void loopClosingForgetsLoopOnReset()
+{
+    ORB_SLAM::Map map;
+    ORB_SLAM::ORBVocabulary vocabulary;
+    ORB_SLAM::KeyFrameDatabase database{vocabulary};
+    CandidateLoopClosing loopClosing{&map, &database, &vocabulary};
+    const auto keyFrame = makeKeyFrame(map);
+    const auto point = std::make_unique<ORB_SLAM::MapPoint>(
+        cv::Mat::zeros(3, 1, CV_32F), keyFrame.get(), &map);
+
+    loopClosing.mpCurrentKF = keyFrame.get();
+    loopClosing.mvpCurrentConnectedKFs = {keyFrame.get()};
+    loopClosing.mvpCurrentMatchedPoints = {point.get()};
+    loopClosing.mvpLoopMapPoints = {point.get()};
+    loopClosing.mbResetRequested = true;
+
+    loopClosing.ResetIfRequested();
+
+    check(loopClosing.mpCurrentKF == nullptr,
+          "loop closing keeps no current keyframe after a reset");
+    check(loopClosing.mvpCurrentConnectedKFs.empty(),
+          "loop closing keeps no connected keyframe after a reset");
+    check(loopClosing.mvpCurrentMatchedPoints.empty(),
+          "loop closing keeps no matched map point after a reset");
+    check(loopClosing.mvpLoopMapPoints.empty(),
+          "loop closing keeps no loop map point after a reset");
+}
+
 // Exposes the reset step of local mapping and its request.
 class ResetLocalMapping : public ORB_SLAM::LocalMapping
 {
@@ -427,7 +462,24 @@ public:
     using ORB_SLAM::LocalMapping::ResetIfRequested;
     using ORB_SLAM::LocalMapping::mbResetRequested;
     using ORB_SLAM::LocalMapping::mMutexReset;
+    using ORB_SLAM::LocalMapping::mpCurrentKeyFrame;
 };
+
+// Local mapping keeps no current keyframe across a reset, which destroys it.
+void localMappingForgetsKeyFrameOnReset()
+{
+    ORB_SLAM::Map map;
+    ResetLocalMapping localMapping{&map};
+    const auto keyFrame = makeKeyFrame(map);
+
+    localMapping.mpCurrentKeyFrame = keyFrame.get();
+    localMapping.mbResetRequested = true;
+
+    localMapping.ResetIfRequested();
+
+    check(localMapping.mpCurrentKeyFrame == nullptr,
+          "local mapping keeps no current keyframe after a reset");
+}
 
 // Tracking inserts keyframes while local mapping resets, which
 // ThreadSanitizer checks for data races.
@@ -588,7 +640,8 @@ void idleLocalMappingProcessesKeyFrame()
     frame.mpORBvocabulary = &vocabulary;
     // Not the first keyframe of the map, which local mapping never culls.
     ORB_SLAM::KeyFrame::nNextId = 1;
-    ORB_SLAM::KeyFrame keyFrame{frame, &map, &database};
+    auto keyFrame =
+        std::make_unique<ORB_SLAM::KeyFrame>(frame, &map, &database);
 
     std::jthread mapping{[&localMapping](std::stop_token stopToken) {
         localMapping.Run(stopToken);
@@ -597,9 +650,17 @@ void idleLocalMappingProcessesKeyFrame()
     // Let the worker reach its wait first.
     std::this_thread::sleep_for(pauseObservation);
 
-    localMapping.InsertKeyFrame(&keyFrame);
+    localMapping.InsertKeyFrame(keyFrame.get());
 
-    check(waitUntil([&localMapping] { return localMapping.AcceptKeyFrames(); }),
+    const bool processed =
+        waitUntil([&localMapping] { return localMapping.AcceptKeyFrames(); });
+
+    if (processed) {
+        // Local mapping added the keyframe to the map, which owns it.
+        std::ignore = keyFrame.release();
+    }
+
+    check(processed,
           std::format("idle local mapping processes an inserted keyframe "
                       "within {}",
                       deadline));
@@ -721,7 +782,9 @@ int main()
     loopCorrectionWaitsForLocalMapping();
     bundleAdjustmentInterruptedConcurrently();
     loopClosingForgetsCandidatesOnReset();
+    loopClosingForgetsLoopOnReset();
     localMappingResetsWhileInserting();
+    localMappingForgetsKeyFrameOnReset();
     idleWorkersSleep();
     idleLocalMappingPauses();
     idleWorkersReset();

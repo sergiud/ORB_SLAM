@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-foreach (_test frame initializer keyframe mappoint matcher optimizer pnpsolver sampling sim3solver threads
-    tracking)
+foreach (_test frame initializer keyframe map mappoint matcher optimizer pnpsolver sampling sim3solver
+    threads tracking)
   add_executable (test_${_test} test_${_test}.cc Check.h Frames.h Scene.h
     Storage.h)
   target_compile_features (test_${_test} PRIVATE cxx_std_23)
@@ -19,6 +19,7 @@ add_test (NAME ORB_SLAM/initializer COMMAND test_initializer)
 add_test (NAME ORB_SLAM/keyframe COMMAND test_keyframe)
 # Keyframes erased at the same time that deadlock never finish.
 set_tests_properties (ORB_SLAM/keyframe PROPERTIES TIMEOUT 120)
+add_test (NAME ORB_SLAM/map COMMAND test_map)
 add_test (NAME ORB_SLAM/mappoint COMMAND test_mappoint)
 add_test (NAME ORB_SLAM/matcher COMMAND test_matcher)
 add_test (NAME ORB_SLAM/optimizer COMMAND test_optimizer)

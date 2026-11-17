@@ -91,6 +91,9 @@ protected:
     void ResetIfRequested();
     bool ResetRequested();
 
+    //! Drops the pointers to erased keyframes and map points kept between keyframes.
+    void DropErasedObjects();
+
     //! Wakes the worker up to look for work.
     void WakeUp();
 
@@ -104,11 +107,14 @@ protected:
 
     std::list<KeyFrame*> mlNewKeyFrames;
 
-    KeyFrame* mpCurrentKeyFrame;
+    KeyFrame* mpCurrentKeyFrame{nullptr};
 
     std::list<MapPoint*> mlpRecentAddedMapPoints;
 
     std::mutex mMutexNewKFs;
+
+    // Keeps erased objects allocated until the worker passed quiescent points.
+    Map::Participant mParticipant;
     std::condition_variable_any processNext;
     std::condition_variable resetDone;
     std::mutex processMutex;

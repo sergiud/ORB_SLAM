@@ -28,6 +28,7 @@
 #include "ORB_SLAM_export.h"
 
 #include <mutex>
+#include <unordered_set>
 #include <vector>
 
 
@@ -61,6 +62,12 @@ public:
 
     void SetBadFlag();
     bool isBad();
+
+    /**
+     * Removes the observations by the keyframes of a batch that the map
+     * frees. A reference keyframe among them gives way to another observer.
+     */
+    void RemoveReferences(const std::unordered_set<KeyFrame*>& keyFrames);
 
     void Replace(MapPoint* pMP);
 

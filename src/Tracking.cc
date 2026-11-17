@@ -38,6 +38,7 @@
 
 #include<iostream>
 #include<fstream>
+#include <algorithm>
 #include <format>
 #include <memory>
 #include <optional>
@@ -62,6 +63,11 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     mState(NO_IMAGES_YET), mpORBVocabulary(pVoc), mpFramePublisher(pFramePublisher), mpMapPublisher(pMapPublisher), mpMap(pMap),
     mnLastRelocFrameId(0), mbPublisherStopped(false), mbReseting(false), mbForceRelocalisation(false), mbMotionModel(UseMotionModel)
 {
+    if(pMap)
+    {
+        mParticipant.emplace(*pMap);
+    }
+
     if (K.empty() || K.cols != 3 || K.rows != 3)
         throw std::invalid_argument{std::format(
             "camera intrinsic matrix must be 3x3, got {}x{}", K.rows, K.cols)};
@@ -113,6 +119,11 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     mState(NO_IMAGES_YET), mpORBVocabulary(pVoc), mpFramePublisher(pFramePublisher), mpMapPublisher(pMapPublisher), mpMap(pMap),
     mnLastRelocFrameId(0), mbPublisherStopped(false), mbReseting(false), mbForceRelocalisation(false), mbMotionModel(false)
 {
+    if(pMap)
+    {
+        mParticipant.emplace(*pMap);
+    }
+
     // Load camera parameters from settings file
 
     cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
@@ -237,6 +248,47 @@ void Tracking::Run()
 }
 
 void Tracking::Track(const cv::Mat& im, double timestamp)
+{
+    TrackImage(im, timestamp);
+
+    if(mParticipant)
+    {
+        DropErasedObjects();
+        mParticipant->Quiesce();
+    }
+}
+
+void Tracking::DropErasedObjects()
+{
+    const auto erased = [](auto* pObject) {
+        return pObject && pObject->isBad();
+    };
+
+    for(Frame* pFrame : {&mCurrentFrame, &mLastFrame, &mInitialFrame})
+    {
+        for(MapPoint*& pMP : pFrame->mvpMapPoints)
+        {
+            if(erased(pMP))
+            {
+                pMP=nullptr;
+            }
+        }
+    }
+
+    if(erased(mpReferenceKF))
+    {
+        mpReferenceKF=nullptr;
+    }
+    if(erased(mpLastKeyFrame))
+    {
+        mpLastKeyFrame=nullptr;
+    }
+
+    std::erase_if(mvpLocalKeyFrames, erased);
+    std::erase_if(mvpLocalMapPoints, erased);
+}
+
+void Tracking::TrackImage(const cv::Mat& im, double timestamp)
 {
     ORBextractor* const extractor = mState==WORKING || mState==LOST ? mpORBextractor.get() : mpIniORBextractor.get();
     mCurrentFrame = Frame(im, timestamp, extractor,mpORBVocabulary,mK,mDistCoef);
@@ -1059,9 +1111,13 @@ bool Tracking::Relocalisation()
     else // Forced Relocalisation: Relocate against local window around last keyframe
     {
         mnLastRelocFrameId = mCurrentFrame.mnId;
-        vpCandidateKFs.reserve(10);
-        vpCandidateKFs = mpLastKeyFrame->GetBestCovisibilityKeyFrames(9);
-        vpCandidateKFs.push_back(mpLastKeyFrame);
+        // An erased last keyframe leaves no window to relocalize against.
+        if(mpLastKeyFrame)
+        {
+            vpCandidateKFs.reserve(10);
+            vpCandidateKFs = mpLastKeyFrame->GetBestCovisibilityKeyFrames(9);
+            vpCandidateKFs.push_back(mpLastKeyFrame);
+        }
     }
 
     if(vpCandidateKFs.empty())
@@ -1265,6 +1321,16 @@ void Tracking::Reset()
     mpKeyFrameDB->clear();
     // Clear Map (this erase MapPoints and KeyFrames)
     mpMap->clear();
+
+    // The map freed the keyframes and map points that the tracker refers to.
+    for(Frame* pFrame : {&mCurrentFrame, &mLastFrame, &mInitialFrame})
+    {
+        std::ranges::fill(pFrame->mvpMapPoints, nullptr);
+    }
+    mpReferenceKF=nullptr;
+    mpLastKeyFrame=nullptr;
+    mvpLocalKeyFrames.clear();
+    mvpLocalMapPoints.clear();
 
     KeyFrame::nNextId = 0;
     Frame::nNextId = 0;

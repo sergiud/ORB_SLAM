@@ -35,6 +35,7 @@
 #include <atomic>
 #include <mutex>
 #include <optional>
+#include <unordered_set>
 
 
 namespace ORB_SLAM
@@ -122,6 +123,16 @@ public:
     // Set/check erased
     void SetBadFlag();
     bool isBad();
+
+    /**
+     * Removes the references to the keyframes and map points of a batch
+     * that the map frees. A child of an erased parent takes the closest
+     * ancestor that remains.
+     */
+    void RemoveReferences(const std::unordered_set<KeyFrame*>& keyFrames,
+                          const std::unordered_set<MapPoint*>& mapPoints);
+    //! Removes the keyframe from the database that indexes it.
+    void EraseFromDatabase();
 
     // Scale functions
     float inline GetScaleFactor(int nLevel=1) const{

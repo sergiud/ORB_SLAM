@@ -21,13 +21,141 @@
 
 #include "Map.h"
 
+#include <algorithm>
+#include <iterator>
+#include <unordered_set>
+#include <utility>
+
 namespace ORB_SLAM
 {
+
+Map::Participant::Participant(Map& map)
+    : mMap{map}
+    , mEpoch{map.mEpoch.load()}
+{
+    std::scoped_lock lock{mMap.mMutexReclaim};
+    mMap.mParticipants.push_back(this);
+}
+
+Map::Participant::~Participant()
+{
+    std::scoped_lock lock{mMap.mMutexReclaim};
+    std::erase(mMap.mParticipants, this);
+}
+
+void Map::Participant::Quiesce()
+{
+    mEpoch.store(mMap.mEpoch.load());
+}
+
+bool Map::ErasedObjects::empty() const
+{
+    return keyFrames.empty() && mapPoints.empty();
+}
 
 Map::Map()
 {
     mbMapUpdated= false;
     mnMaxKFid = 0;
+}
+
+Map::~Map()
+{
+    clear();
+}
+
+bool Map::QuiescedSince(std::uint64_t epoch) const
+{
+    return std::ranges::all_of(mParticipants, [epoch](const Participant* participant) {
+        return participant->mEpoch.load() >= epoch;
+    });
+}
+
+void Map::Reclaim()
+{
+    std::scoped_lock lock{mMutexReclaim};
+
+    if(!mFreeing.empty() && QuiescedSince(mFreeing.epoch))
+    {
+        Free(mFreeing);
+    }
+
+    // Participants that passed a quiescent point after the erasure obtain no
+    // object of the batch anew, since they find each one erased. What the
+    // objects that remain still refer to of the batch is removed here, and
+    // what a participant read before that removal it gives up at its next
+    // quiescent point.
+    if(mFreeing.empty() && !mUnreferencing.empty() && QuiescedSince(mUnreferencing.epoch))
+    {
+        RemoveReferences(mUnreferencing);
+        mFreeing = std::exchange(mUnreferencing, {});
+        mFreeing.epoch = ++mEpoch;
+    }
+
+    if(mUnreferencing.empty())
+    {
+        {
+            std::scoped_lock lockMap{mMutexMap};
+            std::swap(mUnreferencing, mErased);
+        }
+
+        if(!mUnreferencing.empty())
+        {
+            mUnreferencing.epoch = ++mEpoch;
+        }
+    }
+}
+
+void Map::RemoveReferences(const ErasedObjects& erased)
+{
+    const std::unordered_set<KeyFrame*> keyFrames(erased.keyFrames.begin(), erased.keyFrames.end());
+    const std::unordered_set<MapPoint*> mapPoints(erased.mapPoints.begin(), erased.mapPoints.end());
+
+    // Objects erased later may still be read until their own batch is freed,
+    // so their references are removed as well.
+    std::vector<KeyFrame*> vpKFs;
+    std::vector<MapPoint*> vpMPs;
+
+    {
+        std::scoped_lock lock{mMutexMap};
+        vpKFs.assign(mspKeyFrames.begin(), mspKeyFrames.end());
+        vpKFs.insert(vpKFs.end(), mErased.keyFrames.begin(), mErased.keyFrames.end());
+        vpMPs.assign(mspMapPoints.begin(), mspMapPoints.end());
+        vpMPs.insert(vpMPs.end(), mErased.mapPoints.begin(), mErased.mapPoints.end());
+        std::erase_if(mvpReferenceMapPoints, [&mapPoints](MapPoint* pMP) {
+            return mapPoints.contains(pMP);
+        });
+    }
+
+    for(KeyFrame* pKF : vpKFs)
+    {
+        pKF->RemoveReferences(keyFrames, mapPoints);
+    }
+
+    for(MapPoint* pMP : vpMPs)
+    {
+        pMP->RemoveReferences(keyFrames);
+    }
+
+    for(KeyFrame* pKF : erased.keyFrames)
+    {
+        pKF->EraseFromDatabase();
+    }
+}
+
+void Map::Free(ErasedObjects& objects)
+{
+    for(MapPoint* pMP : objects.mapPoints)
+    {
+        delete pMP;
+    }
+
+    for(KeyFrame* pKF : objects.keyFrames)
+    {
+        delete pKF;
+    }
+
+    objects = {};
 }
 
 void Map::AddKeyFrame(KeyFrame *pKF)
@@ -49,21 +177,34 @@ void Map::AddMapPoint(MapPoint *pMP)
 void Map::EraseMapPoint(MapPoint *pMP)
 {
     std::scoped_lock lock{mMutexMap};
-    mspMapPoints.erase(pMP);
+    // A map point erased again was taken for freeing already.
+    if(mspMapPoints.erase(pMP))
+    {
+        mErased.mapPoints.push_back(pMP);
+    }
     mbMapUpdated=true;
 }
 
 void Map::EraseKeyFrame(KeyFrame *pKF)
 {
     std::scoped_lock lock{mMutexMap};
-    mspKeyFrames.erase(pKF);
+    if(mspKeyFrames.erase(pKF))
+    {
+        mErased.keyFrames.push_back(pKF);
+    }
     mbMapUpdated=true;
 }
 
 void Map::SetReferenceMapPoints(const vector<MapPoint *> &vpMPs)
 {
+    std::vector<MapPoint*> vpGood;
+    vpGood.reserve(vpMPs.size());
+    std::ranges::copy_if(vpMPs, std::back_inserter(vpGood), [](MapPoint* pMP) {
+        return !pMP->isBad();
+    });
+
     std::scoped_lock lock{mMutexMap};
-    mvpReferenceMapPoints = vpMPs;
+    mvpReferenceMapPoints = std::move(vpGood);
     mbMapUpdated=true;
 }
 
@@ -124,13 +265,17 @@ unsigned int Map::GetMaxKFid()
 
 void Map::clear()
 {
-    std::scoped_lock lock{mMutexMap};
+    std::scoped_lock lock{mMutexReclaim, mMutexMap};
 
     for(set<MapPoint*>::iterator sit=mspMapPoints.begin(), send=mspMapPoints.end(); sit!=send; sit++)
         delete *sit;
 
     for(set<KeyFrame*>::iterator sit=mspKeyFrames.begin(), send=mspKeyFrames.end(); sit!=send; sit++)
         delete *sit;
+
+    Free(mErased);
+    Free(mUnreferencing);
+    Free(mFreeing);
 
     mspMapPoints.clear();
     mspKeyFrames.clear();

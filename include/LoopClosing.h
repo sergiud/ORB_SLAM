@@ -85,6 +85,10 @@ protected:
     void WakeUp();
 
     void ResetIfRequested();
+
+    //! Drops the pointers to erased keyframes and map points kept between keyframes.
+    void DropErasedObjects();
+
     bool mbResetRequested;
     std::mutex mMutexReset;
 
@@ -110,7 +114,7 @@ protected:
     float mnCovisibilityConsistencyTh;
 
     // Loop detector variables
-    KeyFrame* mpCurrentKF;
+    KeyFrame* mpCurrentKF{nullptr};
     KeyFrame* mpMatchedKF;
     std::vector<ConsistentGroup> mvConsistentGroups;
     std::vector<KeyFrame*> mvpEnoughConsistentCandidates;
@@ -122,6 +126,9 @@ protected:
     double mScale_cw;
 
     long unsigned int mLastLoopKFid;
+
+    // Keeps erased objects allocated until the worker passed quiescent points.
+    Map::Participant mParticipant;
 };
 
 } //namespace ORB_SLAM

@@ -4,6 +4,7 @@
 
 // Tests of the tracking front end that need no images.
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <filesystem>
@@ -25,11 +26,13 @@
 
 #include "Check.h"
 #include "FramePublisher.h"
+#include "KeyFrameDatabase.h"
 #include "Frames.h"
 #include "LocalMapping.h"
 #include "Map.h"
 #include "MapPoint.h"
 #include "MapPublisher.h"
+#include "Scene.h"
 #include "Storage.h"
 #include "Tracking.h"
 
@@ -368,6 +371,205 @@ void relocalisationForcedConcurrently()
     done = true;
 }
 
+// Exposes the pointers to keyframes and map points that the tracker keeps
+// from one image to the next.
+class ReferringTracking : public ORB_SLAM::Tracking
+{
+public:
+    using ORB_SLAM::Tracking::Tracking;
+    using ORB_SLAM::Tracking::DropErasedObjects;
+    using ORB_SLAM::Tracking::Relocalisation;
+    using ORB_SLAM::Tracking::Reset;
+    using ORB_SLAM::Tracking::mInitialFrame;
+    using ORB_SLAM::Tracking::mLastFrame;
+    using ORB_SLAM::Tracking::mpLastKeyFrame;
+    using ORB_SLAM::Tracking::mpReferenceKF;
+    using ORB_SLAM::Tracking::mvpLocalKeyFrames;
+    using ORB_SLAM::Tracking::mvpLocalMapPoints;
+};
+
+// After an image, the tracker keeps no erased keyframe or map point, which
+// the map frees once the tracker passed two images. Until the tracker
+// passes an image, the map keeps the references to them.
+void trackerDropsErasedObjects()
+{
+    constexpr int width = 640;
+    constexpr int height = 480;
+
+    ORB_SLAM::tests::Scene scene;
+    const std::vector<cv::KeyPoint> keyPoint{cv::KeyPoint{0, 0, 1}};
+    ORB_SLAM::KeyFrame* const root = scene.addKeyFrame(
+        cv::Mat::eye(4, 4, CV_32F), cv::Mat::eye(3, 3, CV_32F), keyPoint);
+    ORB_SLAM::KeyFrame* const erased = scene.addKeyFrame(
+        cv::Mat::eye(4, 4, CV_32F), cv::Mat::eye(3, 3, CV_32F), keyPoint);
+    erased->ChangeParent(root);
+
+    ORB_SLAM::FramePublisher framePublisher;
+    ORB_SLAM::MapPublisher mapPublisher{&scene.map()};
+    ReferringTracking tracking{nullptr, &framePublisher, &mapPublisher,
+                               &scene.map(), cv::Mat1f::eye(3, 3), cv::Mat{},
+                               framesPerSecond, features, scaleFactor, levels,
+                               fastThreshold, harrisScore,
+                               /*useMotionModel=*/true};
+
+    // The map owns the point, and the root keeps a reference to it that the
+    // erasure misses.
+    auto* const point = new ORB_SLAM::MapPoint{cv::Mat{cv::Vec3f{0, 0, 1}},
+                                               root, &scene.map()};
+    scene.map().AddMapPoint(point);
+    root->AddMapPoint(point, 0);
+
+    tracking.mLastFrame = ORB_SLAM::tests::makeFrame(
+        cv::Mat::eye(4, 4, CV_32F), cv::Mat{}, keyPoint);
+    tracking.mLastFrame.mvpMapPoints = {point};
+    tracking.mInitialFrame = tracking.mLastFrame;
+    tracking.mpLastKeyFrame = erased;
+    tracking.mpReferenceKF = erased;
+    tracking.mvpLocalKeyFrames = {root, erased};
+    tracking.mvpLocalMapPoints = {point};
+
+    point->SetBadFlag();
+    erased->SetBadFlag();
+
+    for (int i = 0; i < 2; ++i) {
+        scene.map().Reclaim();
+    }
+
+    check(root->GetMapPoint(0) == point,
+          "the map keeps the references to an erased map point while the "
+          "tracker passed no image");
+
+    const cv::Mat black = cv::Mat::zeros(height, width, CV_8U);
+    tracking.Track(black, 0);
+
+    check(tracking.mLastFrame.mvpMapPoints[0] == nullptr,
+          "the last frame keeps no erased map point");
+    check(tracking.mInitialFrame.mvpMapPoints[0] == nullptr,
+          "the initial frame keeps no erased map point");
+    check(tracking.mpLastKeyFrame == nullptr,
+          "the tracker keeps no erased last keyframe");
+    check(tracking.mpReferenceKF == nullptr,
+          "the tracker keeps no erased reference keyframe");
+    check(tracking.mvpLocalKeyFrames == std::vector<ORB_SLAM::KeyFrame*>{root},
+          "the local map keeps no erased keyframe");
+    check(tracking.mvpLocalMapPoints.empty(),
+          "the local map keeps no erased map point");
+
+    scene.map().Reclaim();
+
+    check(root->GetMapPoint(0) == nullptr,
+          "the map removes the references to an erased map point once the "
+          "tracker passed an image");
+}
+
+// The current frame of the tracker keeps no erased map point after its
+// quiescent point either.
+void currentFrameDropsErasedMapPoints()
+{
+    ORB_SLAM::tests::Scene scene;
+    const std::vector<cv::KeyPoint> keyPoint{cv::KeyPoint{0, 0, 1}};
+    ORB_SLAM::KeyFrame* const keyFrame = scene.addKeyFrame(
+        cv::Mat::eye(4, 4, CV_32F), cv::Mat::eye(3, 3, CV_32F), keyPoint);
+    ORB_SLAM::MapPoint* const point =
+        scene.addMapPoint({0, 0, 1}, {{keyFrame, 0}});
+
+    ReferringTracking tracking{nullptr, nullptr, nullptr, &scene.map(),
+                               cv::Mat1f::eye(3, 3), cv::Mat{},
+                               framesPerSecond, features, scaleFactor, levels,
+                               fastThreshold, harrisScore,
+                               /*useMotionModel=*/true};
+    tracking.mCurrentFrame = ORB_SLAM::tests::makeFrame(
+        cv::Mat::eye(4, 4, CV_32F), cv::Mat{}, keyPoint);
+    tracking.mCurrentFrame.mvpMapPoints = {point};
+
+    point->SetBadFlag();
+    tracking.DropErasedObjects();
+
+    check(tracking.mCurrentFrame.mvpMapPoints[0] == nullptr,
+          "the current frame keeps no erased map point");
+}
+
+// A reset destroys every keyframe and map point, so the tracker keeps none
+// across it.
+void trackerForgetsMapOnReset()
+{
+    ORB_SLAM::Map map;
+    ORB_SLAM::ORBVocabulary vocabulary;
+    ORB_SLAM::KeyFrameDatabase database{vocabulary};
+    ReferringTracking tracking{nullptr, nullptr, nullptr, &map,
+                               cv::Mat1f::eye(3, 3), cv::Mat{},
+                               framesPerSecond, features, scaleFactor, levels,
+                               fastThreshold, harrisScore,
+                               /*useMotionModel=*/true};
+    tracking.SetKeyFrameDatabase(&database);
+
+    const std::vector<cv::KeyPoint> keyPoint{cv::KeyPoint{0, 0, 1}};
+    ORB_SLAM::Frame frame = ORB_SLAM::tests::makeFrame(
+        cv::Mat::eye(4, 4, CV_32F), cv::Mat{}, keyPoint);
+    auto* const keyFrame = new ORB_SLAM::KeyFrame{frame, &map, &database};
+    map.AddKeyFrame(keyFrame);
+    auto* const point =
+        new ORB_SLAM::MapPoint{cv::Mat{cv::Vec3f{0, 0, 1}}, keyFrame, &map};
+    map.AddMapPoint(point);
+
+    frame.mvpMapPoints = {point};
+    tracking.mCurrentFrame = frame;
+    tracking.mLastFrame = frame;
+    tracking.mInitialFrame = frame;
+    tracking.mpReferenceKF = keyFrame;
+    tracking.mpLastKeyFrame = keyFrame;
+    tracking.mvpLocalKeyFrames = {keyFrame};
+    tracking.mvpLocalMapPoints = {point};
+
+    tracking.Reset();
+
+    const auto none = [](const ORB_SLAM::Frame& tracked) {
+        return std::ranges::all_of(tracked.mvpMapPoints,
+                                   [](const ORB_SLAM::MapPoint* mapPoint) {
+                                       return mapPoint == nullptr;
+                                   });
+    };
+
+    check(none(tracking.mCurrentFrame) && none(tracking.mLastFrame) &&
+              none(tracking.mInitialFrame),
+          "the frames of the tracker keep no map point after a reset");
+    check(tracking.mpReferenceKF == nullptr && tracking.mpLastKeyFrame == nullptr,
+          "the tracker keeps no reference or last keyframe after a reset");
+    check(tracking.mvpLocalKeyFrames.empty() && tracking.mvpLocalMapPoints.empty(),
+          "the local map is empty after a reset");
+}
+
+// A forced relocalisation without a last keyframe, which an erasure dropped,
+// finds no candidate rather than reading the missing keyframe.
+void forcedRelocalisationWithoutLastKeyFrame()
+{
+    constexpr int branching = 2;
+    constexpr int depth = 1;
+
+    ORB_SLAM::ORBVocabulary vocabulary;
+    vocabulary.create(
+        {{cv::Mat::zeros(1, ORB_SLAM::tests::descriptorBytes, CV_8U),
+          cv::Mat::ones(1, ORB_SLAM::tests::descriptorBytes, CV_8U)}},
+        branching, depth);
+    ORB_SLAM::Map map;
+    ORB_SLAM::KeyFrameDatabase database{vocabulary};
+    ReferringTracking tracking{&vocabulary, nullptr, nullptr, &map,
+                               cv::Mat1f::eye(3, 3), cv::Mat{},
+                               framesPerSecond, features, scaleFactor, levels,
+                               fastThreshold, harrisScore,
+                               /*useMotionModel=*/true};
+    tracking.SetKeyFrameDatabase(&database);
+    tracking.mCurrentFrame = ORB_SLAM::tests::makeFrame(
+        cv::Mat::eye(4, 4, CV_32F), cv::Mat{}, {cv::KeyPoint{0, 0, 1}});
+    tracking.mCurrentFrame.mpORBvocabulary = &vocabulary;
+    tracking.mpLastKeyFrame = nullptr;
+
+    tracking.ForceRelocalisation();
+
+    check(!tracking.Relocalisation(),
+          "a forced relocalisation without a last keyframe fails");
+}
+
 } // namespace
 
 int main()
@@ -390,6 +592,10 @@ int main()
     settingsTrackerStartsEmpty();
     framesCarryImageTime();
     relocalisationForcedConcurrently();
+    trackerDropsErasedObjects();
+    currentFrameDropsErasedMapPoints();
+    trackerForgetsMapOnReset();
+    forcedRelocalisationWithoutLastKeyFrame();
 
     return ORB_SLAM::tests::exitStatus();
 }

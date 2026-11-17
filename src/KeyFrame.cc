@@ -218,6 +218,13 @@ int KeyFrame::GetWeight(KeyFrame *pKF)
 
 void KeyFrame::AddMapPoint(MapPoint *pMP, const size_t &idx)
 {
+    // The map frees an erased map point once its references are removed, so
+    // none is taken after that.
+    if(pMP && pMP->isBad())
+    {
+        return;
+    }
+
     std::scoped_lock lock{mMutexFeatures};
     mvpMapPoints[idx]=pMP;
 }
@@ -242,6 +249,11 @@ void KeyFrame::EraseMapPointMatch(MapPoint* pMP)
 
 void KeyFrame::ReplaceMapPointMatch(const size_t &idx, MapPoint* pMP)
 {
+    if(pMP && pMP->isBad())
+    {
+        pMP=nullptr;
+    }
+
     std::scoped_lock lock{mMutexFeatures};
     mvpMapPoints[idx]=pMP;
 }
@@ -369,8 +381,10 @@ void KeyFrame::UpdateConnections()
 
         for(map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
         {
-            if(mit->first->mnId==mnId)
+            if(mit->first->mnId==mnId || mit->first->isBad())
+            {
                 continue;
+            }
             KFcounter[mit->first]++;
         }
     }
@@ -449,6 +463,11 @@ void KeyFrame::UpdateConnections()
 
 void KeyFrame::AddChild(KeyFrame *pKF)
 {
+    if(pKF->isBad())
+    {
+        return;
+    }
+
     std::scoped_lock lockCon{mMutexConnections};
     mspChildrens.insert(pKF);
 }
@@ -462,6 +481,11 @@ void KeyFrame::EraseChild(KeyFrame *pKF)
 
 void KeyFrame::ChangeParent(KeyFrame *pKF)
 {
+    if(pKF->isBad())
+    {
+        return;
+    }
+
     {
         std::scoped_lock lockCon{mMutexConnections};
         mpParent = pKF;
@@ -490,6 +514,11 @@ bool KeyFrame::hasChild(KeyFrame *pKF)
 
 void KeyFrame::AddLoopEdge(KeyFrame *pKF)
 {
+    if(pKF->isBad())
+    {
+        return;
+    }
+
     std::scoped_lock lockCon{mMutexConnections};
     mbNotErase = true;
     mspLoopEdges.insert(pKF);
@@ -624,6 +653,91 @@ void KeyFrame::SetBadFlag()
     pParent->EraseChild(this);
 
     mpMap->EraseKeyFrame(this);
+    mpKeyFrameDB->erase(this);
+}
+
+void KeyFrame::RemoveReferences(const std::unordered_set<KeyFrame*>& keyFrames,
+                                const std::unordered_set<MapPoint*>& mapPoints)
+{
+    {
+        std::scoped_lock lock{mMutexFeatures};
+        for(MapPoint*& pMP : mvpMapPoints)
+        {
+            if(mapPoints.contains(pMP))
+            {
+                pMP=nullptr;
+            }
+        }
+    }
+
+    KeyFrame* pParent;
+
+    {
+        std::scoped_lock lock{mMutexConnections};
+
+        const auto erased = [&keyFrames](KeyFrame* pKF) {
+            return keyFrames.contains(pKF);
+        };
+
+        std::erase_if(mConnectedKeyFrameWeights, [&erased](const std::pair<KeyFrame* const, int>& connection) {
+            return erased(connection.first);
+        });
+
+        vector<KeyFrame*> vpOrdered;
+        vector<int> vWeights;
+        for(size_t i=0, iend=mvpOrderedConnectedKeyFrames.size(); i<iend; ++i)
+        {
+            if(erased(mvpOrderedConnectedKeyFrames[i]))
+            {
+                continue;
+            }
+            vpOrdered.push_back(mvpOrderedConnectedKeyFrames[i]);
+            vWeights.push_back(mvOrderedWeights[i]);
+        }
+        mvpOrderedConnectedKeyFrames.swap(vpOrdered);
+        mvOrderedWeights.swap(vWeights);
+
+        std::erase_if(mspChildrens, erased);
+        std::erase_if(mspLoopEdges, erased);
+        pParent = mpParent;
+    }
+
+    if(!keyFrames.contains(pParent))
+    {
+        return;
+    }
+
+    // The parent became erased while this keyframe became its child, so its
+    // erasure handed this keyframe to no other. The erased keyframes stay
+    // allocated until the batch is freed, so their parents can be followed.
+    KeyFrame* pAncestor = pParent;
+    for(size_t steps=0; keyFrames.contains(pAncestor) && steps<=keyFrames.size(); ++steps)
+    {
+        pAncestor = pAncestor->GetParent();
+    }
+
+    if(keyFrames.contains(pAncestor))
+    {
+        pAncestor = nullptr;
+    }
+
+    {
+        std::scoped_lock lock{mMutexConnections};
+        if(mpParent!=pParent)
+        {
+            return;
+        }
+        mpParent = pAncestor;
+    }
+
+    if(pAncestor)
+    {
+        pAncestor->AddChild(this);
+    }
+}
+
+void KeyFrame::EraseFromDatabase()
+{
     mpKeyFrameDB->erase(this);
 }
 

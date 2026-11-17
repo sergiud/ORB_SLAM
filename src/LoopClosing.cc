@@ -44,7 +44,8 @@ namespace ORB_SLAM
 {
 
 LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc):
-    mbResetRequested(false), mpMap(pMap), mpKeyFrameDB(pDB), mpORBVocabulary(pVoc), mLastLoopKFid(0)
+    mbResetRequested(false), mpMap(pMap), mpKeyFrameDB(pDB), mpORBVocabulary(pVoc), mLastLoopKFid(0),
+    mParticipant(*pMap)
 {
     mnCovisibilityConsistencyTh = 3;
     mpMatchedKF = NULL;
@@ -85,6 +86,10 @@ void LoopClosing::Run(std::stop_token stopToken)
         }
 
         ResetIfRequested();
+
+        DropErasedObjects();
+        mParticipant.Quiesce();
+
         r.sleep();
     }
 #else
@@ -107,12 +112,56 @@ void LoopClosing::Run(std::stop_token stopToken)
 
         ResetIfRequested();
 
+        DropErasedObjects();
+        mParticipant.Quiesce();
+
         std::unique_lock lock{processMutex};
         processNext.wait(lock, stopToken, [this] {
             return CheckNewKeyFrames() || ResetRequested();
         });
     }
 #endif // HAVE_ROS
+}
+
+void LoopClosing::DropErasedObjects()
+{
+    const auto erased = [](auto* pObject) {
+        return pObject && pObject->isBad();
+    };
+
+    {
+        std::scoped_lock lock{mMutexLoopQueue};
+        std::erase_if(mlpLoopKeyFrameQueue, erased);
+    }
+
+    if(erased(mpCurrentKF))
+    {
+        mpCurrentKF=nullptr;
+    }
+    if(erased(mpMatchedKF))
+    {
+        mpMatchedKF=nullptr;
+    }
+
+    // Groups are compared by address, which a later keyframe may take over
+    // from a freed one.
+    for(ConsistentGroup& group : mvConsistentGroups)
+    {
+        std::erase_if(group.first, erased);
+    }
+
+    std::erase_if(mvpEnoughConsistentCandidates, erased);
+    std::erase_if(mvpCurrentConnectedKFs, erased);
+    std::erase_if(mvpLoopMapPoints, erased);
+
+    // The matches are indexed by the keypoints of the current keyframe.
+    for(MapPoint*& pMP : mvpCurrentMatchedPoints)
+    {
+        if(erased(pMP))
+        {
+            pMP=nullptr;
+        }
+    }
 }
 
 bool LoopClosing::ResetRequested()
@@ -676,6 +725,10 @@ void LoopClosing::ResetIfRequested()
         mvConsistentGroups.clear();
         mvpEnoughConsistentCandidates.clear();
         mpMatchedKF = NULL;
+        mpCurrentKF = nullptr;
+        mvpCurrentConnectedKFs.clear();
+        mvpCurrentMatchedPoints.clear();
+        mvpLoopMapPoints.clear();
         mLastLoopKFid=0;
         mbResetRequested=false;
         resetDone.notify_one();

@@ -30,8 +30,8 @@ struct Observation
 };
 
 /**
- * Owns the keyframes and map points of a test, which the library only
- * refers to.
+ * Holds the keyframes and map points of a test. The map owns the keyframes,
+ * and the scene the map points, which it leaves out of the map.
  */
 class Scene
 {
@@ -56,9 +56,9 @@ public:
                           Pyramid pyramid = {})
     {
         Frame frame = makeFrame(Tcw, K, std::move(keyPoints), pyramid);
-        keyFrames_.push_back(std::make_unique<KeyFrame>(frame, &map_, &database_));
-        map_.AddKeyFrame(keyFrames_.back().get());
-        return keyFrames_.back().get();
+        auto keyFrame = std::make_unique<KeyFrame>(frame, &map_, &database_);
+        map_.AddKeyFrame(keyFrame.get());
+        return keyFrame.release();
     }
 
     /**
@@ -97,7 +97,6 @@ private:
     Map map_;
     ORBVocabulary vocabulary_;
     KeyFrameDatabase database_{vocabulary_};
-    std::vector<std::unique_ptr<KeyFrame>> keyFrames_;
     std::vector<std::unique_ptr<MapPoint>> mapPoints_;
 };
 

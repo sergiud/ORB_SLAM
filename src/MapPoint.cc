@@ -72,6 +72,13 @@ KeyFrame* MapPoint::GetReferenceKeyFrame()
 
 void MapPoint::AddObservation(KeyFrame* pKF, size_t idx)
 {
+    // The map frees an erased keyframe once its references are removed, so
+    // none is taken after that.
+    if(pKF->isBad())
+    {
+        return;
+    }
+
     std::scoped_lock lock{mMutexFeatures};
     mObservations[pKF]=idx;
 }
@@ -128,6 +135,20 @@ void MapPoint::SetBadFlag()
     }
 
     mpMap->EraseMapPoint(this);
+}
+
+void MapPoint::RemoveReferences(const std::unordered_set<KeyFrame*>& keyFrames)
+{
+    std::scoped_lock lock{mMutexFeatures};
+
+    std::erase_if(mObservations, [&keyFrames](const std::pair<KeyFrame* const, size_t>& observation) {
+        return keyFrames.contains(observation.first);
+    });
+
+    if(keyFrames.contains(mpRefKF))
+    {
+        mpRefKF=mObservations.empty() ? nullptr : mObservations.begin()->first;
+    }
 }
 
 void MapPoint::Replace(MapPoint* pMP)

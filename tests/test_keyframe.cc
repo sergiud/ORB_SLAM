@@ -455,6 +455,65 @@ void covisiblesReachingWeight()
                       threshold, all, some));
 }
 
+// Keyframes and map points take no reference to an erased keyframe or map
+// point, which they would keep after the map freed it.
+void erasedObjectsRefused()
+{
+    ORB_SLAM::tests::Scene scene;
+    const std::vector<cv::KeyPoint> keyPoints(3, cv::KeyPoint{0, 0, 1});
+
+    auto addObserver = [&scene, &keyPoints] {
+        return scene.addKeyFrame(cv::Mat::eye(4, 4, CV_32F),
+                                 cv::Mat::eye(3, 3, CV_32F), keyPoints);
+    };
+
+    ORB_SLAM::KeyFrame* const root = addObserver();
+    ORB_SLAM::KeyFrame* const erased = addObserver();
+    ORB_SLAM::KeyFrame* const keyFrame = addObserver();
+    erased->ChangeParent(root);
+    keyFrame->ChangeParent(root);
+
+    // An observation that the erased keyframe does not know of, which its
+    // erasure therefore keeps.
+    ORB_SLAM::MapPoint* const shared = scene.addMapPoint({0, 0, 1}, {{keyFrame, 0}});
+    shared->AddObservation(erased, 0);
+
+    ORB_SLAM::MapPoint* const erasedPoint =
+        scene.addMapPoint({0, 0, 1}, {{root, 1}});
+
+    erased->SetBadFlag();
+    erasedPoint->SetBadFlag();
+
+    keyFrame->UpdateConnections();
+    check(!keyFrame->GetConnectedKeyFrames().contains(erased),
+          "a keyframe connects to no erased keyframe");
+
+    keyFrame->AddChild(erased);
+    check(!keyFrame->GetChilds().contains(erased),
+          "a keyframe adopts no erased keyframe");
+
+    keyFrame->ChangeParent(erased);
+    check(keyFrame->GetParent() == root,
+          "a keyframe takes no erased keyframe as its parent");
+
+    keyFrame->AddLoopEdge(erased);
+    check(!keyFrame->GetLoopEdges().contains(erased),
+          "a keyframe closes no loop with an erased keyframe");
+
+    ORB_SLAM::MapPoint* const point = scene.addMapPoint({0, 0, 1}, {{keyFrame, 2}});
+    point->AddObservation(erased, 2);
+    check(!point->GetObservations().contains(erased),
+          "a map point takes no observation of an erased keyframe");
+
+    keyFrame->AddMapPoint(erasedPoint, 1);
+    check(keyFrame->GetMapPoint(1) == nullptr,
+          "a keyframe takes no erased map point");
+
+    keyFrame->ReplaceMapPointMatch(2, erasedPoint);
+    check(keyFrame->GetMapPoint(2) == nullptr,
+          "a keyframe replaces a map point by no erased map point");
+}
+
 } // namespace
 
 int main()
@@ -469,6 +528,7 @@ int main()
     erasureReleasedConcurrently();
     mapClearedConcurrently();
     covisiblesReachingWeight();
+    erasedObjectsRefused();
 
     return ORB_SLAM::tests::exitStatus();
 }

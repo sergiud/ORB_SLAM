@@ -41,6 +41,13 @@ KeyFrameDatabase::KeyFrameDatabase (const ORBVocabulary &voc):
 
 void KeyFrameDatabase::add(KeyFrame *pKF)
 {
+    // The map frees an erased keyframe once its references are removed, so
+    // none is indexed after that.
+    if(pKF->isBad())
+    {
+        return;
+    }
+
     std::scoped_lock lock{mMutex};
 
     for(DBoW2::BowVector::const_iterator vit= pKF->mBowVec.begin(), vend=pKF->mBowVec.end(); vit!=vend; vit++)

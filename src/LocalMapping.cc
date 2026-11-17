@@ -37,7 +37,7 @@ namespace ORB_SLAM
 
 LocalMapping::LocalMapping(Map *pMap):
     mbResetRequested(false), mpMap(pMap),  mbAbortBA(false), mbPaused(false), mbPauseRequested(false), mbAcceptKeyFrames(true),
-    mpLoopCloser(NULL), mpTracker(NULL)
+    mpLoopCloser(NULL), mpTracker(NULL), mParticipant(*pMap)
 {
 }
 
@@ -109,6 +109,11 @@ void LocalMapping::Run(std::stop_token stopToken)
         }
 
         ResetIfRequested();
+
+        DropErasedObjects();
+        mParticipant.Quiesce();
+        mpMap->Reclaim();
+
         r.sleep();
     }
 #else
@@ -166,6 +171,10 @@ void LocalMapping::Run(std::stop_token stopToken)
 
         ResetIfRequested();
 
+        DropErasedObjects();
+        mParticipant.Quiesce();
+        mpMap->Reclaim();
+
         {
             std::unique_lock lock{processMutex};
             processNext.wait(lock, stopToken, [this] {
@@ -174,6 +183,34 @@ void LocalMapping::Run(std::stop_token stopToken)
         }
     }
 #endif // HAVE_ROS
+}
+
+void LocalMapping::DropErasedObjects()
+{
+    std::erase_if(mlpRecentAddedMapPoints, [](MapPoint* pMP) {
+        return pMP->isBad();
+    });
+
+    if(mpCurrentKeyFrame && mpCurrentKeyFrame->isBad())
+    {
+        mpCurrentKeyFrame=nullptr;
+    }
+
+    // The keyframes waiting to be processed hold the map points that
+    // tracking matched, which they do not observe yet, so that an erasure
+    // leaves them in place.
+    std::scoped_lock lock{mMutexNewKFs};
+    for(KeyFrame* pKF : mlNewKeyFrames)
+    {
+        const vector<MapPoint*> vpMPs = pKF->GetMapPointMatches();
+        for(size_t i=0, iend=vpMPs.size(); i<iend; ++i)
+        {
+            if(vpMPs[i] && vpMPs[i]->isBad())
+            {
+                pKF->EraseMapPointMatch(i);
+            }
+        }
+    }
 }
 
 bool LocalMapping::ResetRequested()
@@ -250,6 +287,13 @@ void LocalMapping::ProcessNewKeyFrame()
                     pMP->AddObservation(mpCurrentKeyFrame, i);
                     pMP->UpdateNormalAndDepth();
                     pMP->ComputeDistinctiveDescriptors();
+                }
+                else
+                {
+                    // The map may have removed the references to the map
+                    // point while the keyframe waited, and frees it once
+                    // local mapping passes its next quiescent point.
+                    mpCurrentKeyFrame->EraseMapPointMatch(i);
                 }
             }
         }
@@ -746,6 +790,7 @@ void LocalMapping::ResetIfRequested()
             mlNewKeyFrames.clear();
         }
         mlpRecentAddedMapPoints.clear();
+        mpCurrentKeyFrame=nullptr;
         mbResetRequested=false;
         // Without keyframes left to process, local mapping is idle and
         // accepts the next one, also if a reset discarded one it had not

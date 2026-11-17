@@ -45,6 +45,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <optional>
 
 
 namespace ORB_SLAM
@@ -126,6 +127,11 @@ protected:
     void GrabImage(const sensor_msgs::ImageConstPtr& msg);
 #endif // HAVE_ROS
 
+    //! Tracks the camera in an image, as @ref Track describes.
+    void TrackImage(const cv::Mat& image, double timestamp);
+    //! Drops the pointers to erased keyframes and map points kept between images.
+    void DropErasedObjects();
+
     void FirstInitialization();
     void Initialize();
     void CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw);
@@ -175,6 +181,9 @@ protected:
 
     //Map
     Map* mpMap;
+    // Keeps erased objects allocated until the tracker passed quiescent
+    // points, if the tracker has a map.
+    std::optional<Map::Participant> mParticipant;
 
     //Calibration matrix
     cv::Mat mK;
