@@ -2,18 +2,21 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-foreach (_test frame initializer keyframe map mappoint matcher optimizer pnpsolver sampling sim3solver
-    threads tracking)
+foreach (_test checks frame initializer keyframe map mappoint matcher optimizer pnpsolver sampling
+    sim3solver threads tracking)
   add_executable (test_${_test} test_${_test}.cc Check.h Frames.h Scene.h
     Storage.h)
   target_compile_features (test_${_test} PRIVATE cxx_std_23)
-  target_link_libraries (test_${_test} PRIVATE ORB_SLAM)
+  target_link_libraries (test_${_test} PRIVATE ng-log::experimental ORB_SLAM)
 endforeach (_test)
 
 add_test (NAME ORB_SLAM/threads COMMAND test_threads)
 # A worker that ignores the stop request never returns.
 set_tests_properties (ORB_SLAM/threads PROPERTIES TIMEOUT 60)
 
+add_test (NAME ORB_SLAM/checks COMMAND test_checks)
+# A violated precondition that no check stops may hang the child process.
+set_tests_properties (ORB_SLAM/checks PROPERTIES TIMEOUT 60)
 add_test (NAME ORB_SLAM/frame COMMAND test_frame)
 add_test (NAME ORB_SLAM/initializer COMMAND test_initializer)
 add_test (NAME ORB_SLAM/keyframe COMMAND test_keyframe)
@@ -28,6 +31,12 @@ add_test (NAME ORB_SLAM/sampling COMMAND test_sampling)
 add_test (NAME ORB_SLAM/sim3solver COMMAND test_sim3solver)
 add_test (NAME ORB_SLAM/tracking COMMAND test_tracking)
 
+# Prefix of the messages that the program logs at each severity: the
+# severity, the date and time, the thread, and the file and line.
+foreach (_severity I E)
+  set (_log_${_severity} "${_severity}[0-9]+ [0-9:.]+ +[0-9]+ [^ ]+:[0-9]+\\] ")
+endforeach (_severity)
+
 # The vocabulary is read first and reported with its path, before the
 # missing calibration and video end the run.
 add_test (NAME ORB_SLAM/cli/path-with-spaces
@@ -37,7 +46,7 @@ add_test (NAME ORB_SLAM/cli/path-with-spaces
     --input missing.avi
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set_tests_properties (ORB_SLAM/cli/path-with-spaces PROPERTIES
-  PASS_REGULAR_EXPRESSION "reading vocabulary \"dir with spaces/vocabulary.txt\""
+  PASS_REGULAR_EXPRESSION "${_log_I}reading vocabulary \"dir with spaces/vocabulary.txt\""
   TIMEOUT 60)
 
 # An invalid command line ends the program with an error message, not an
@@ -85,7 +94,8 @@ set_tests_properties (ORB_SLAM/cli/stops-at-end PROPERTIES
 foreach (_case
     "missing-vocabulary|--vocabulary|missing.txt|--calibration|calibration.yml|--input|black.avi|cannot read vocabulary \"missing.txt\""
     "missing-calibration|--vocabulary|vocabulary.txt|--calibration|missing.yml|--input|black.avi|cannot read calibration \"missing.yml\""
-    "uncalibrated|--vocabulary|vocabulary.txt|--calibration|uncalibrated.yml|--input|black.avi|camera intrinsic matrix must be 3x3, got 0x0")
+    "uncalibrated|--vocabulary|vocabulary.txt|--calibration|uncalibrated.yml|--input|black.avi|camera intrinsic matrix must be 3x3, got 0x0"
+    "missing-video|--vocabulary|vocabulary.txt|--calibration|calibration.yml|--input|missing.avi|cannot open video \"missing.avi\"")
   string (REPLACE "|" ";" _fields "${_case}")
   list (POP_FRONT _fields _name)
   list (POP_BACK _fields _error)
@@ -96,7 +106,7 @@ foreach (_case
       -DPROGRAM=$<TARGET_FILE:run_ORB_SLAM>
       "-DARGUMENTS=--no-video|${_arguments}"
       # OpenCV and DBoW2 report the failure on their own first.
-      "-DERROR=error: ${_error}"
+      "-DERROR=${_log_E}${_error}"
       -P ${CMAKE_CURRENT_SOURCE_DIR}/ExpectError.cmake
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   set_tests_properties (ORB_SLAM/cli/${_name} PROPERTIES

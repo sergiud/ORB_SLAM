@@ -26,7 +26,8 @@
 #include "ros/ros.h"
 #endif // HAVE_ROS
 
-#include <cassert>
+#include <ng-log/experimental/ensure.h>
+#include <ng-log/experimental/log.h>
 
 namespace ORB_SLAM
 {
@@ -132,7 +133,8 @@ Eigen::Matrix<double,3,1> Converter::toVector3d(const cv::Point3f &cvPoint)
 
 Eigen::Matrix<double,2,1> Converter::toVector2d(const cv::Mat &cvVector)
 {
-    assert((cvVector.rows==2 && cvVector.cols==1) || (cvVector.cols==2 && cvVector.rows==1));
+    nglog::experimental::Ensure((cvVector.rows==2 && cvVector.cols==1) || (cvVector.cols==2 && cvVector.rows==1),
+                                "a 2-vector is expected, got {}x{}", cvVector.rows, cvVector.cols);
 
     Eigen::Matrix<double,2,1> v;
     v << cvVector.at<float>(0), cvVector.at<float>(1);

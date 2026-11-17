@@ -75,6 +75,9 @@ ORB-SLAM needs Eigen 3.4.1 or later, up to version 5. g2o needs BLAS and LAPACK 
 ##2.5 DBoW2 (included in Thirdparty)
 We make use of some components of the DBoW2 library (see original at https://github.com/dorian3d/DBoW2) for place recognition and feature matching. There are no additional dependencies to compile DBoW2.
 
+##2.6 ng-log
+ORB-SLAM logs its messages and checks its preconditions with the experimental C++20 interface of ng-log (https://github.com/ng-log/ng-log). Install ng-log 0.9.0 or later built with that interface, which CMake finds as the `experimental` component of the ng-log package. `run_ORB_SLAM` writes the messages to the standard error.
+
 
 #3. Installation
 

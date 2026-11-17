@@ -2,7 +2,7 @@
  * This file is part of ORB-SLAM.
  *
  * Copyright (C) 2014 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
- * Copyright (C) 2015, 2019 Sergiu Deitsch <sergiu dot deitsch at fau dot de> (University of Erlangen-Nürnberg)
+ * Copyright (C) 2015-2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
  * For more information see <http://webdiis.unizar.es/~raulmur/orbslam/>
  *
  * ORB-SLAM is free software: you can redistribute it and/or modify
@@ -27,6 +27,7 @@
 #include <print>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -45,6 +46,9 @@
 
 #include <boost/any.hpp>
 #include <boost/program_options.hpp>
+
+#include <ng-log/experimental/log.h>
+#include <ng-log/experimental/setup.h>
 
 namespace boost {
 
@@ -106,11 +110,33 @@ void version()
     std::cout << banner;
 }
 
+namespace ngx = nglog::experimental;
+
+// Logs to the standard error while it exists.
+struct LoggingSession
+{
+    explicit LoggingSession(std::string_view programName)
+    {
+        ngx::Initialize(programName);
+        ngx::LogOnlyToStderr();
+    }
+
+    ~LoggingSession()
+    {
+        ngx::Shutdown();
+    }
+
+    LoggingSession(const LoggingSession&) = delete;
+    LoggingSession& operator=(const LoggingSession&) = delete;
+};
+
 } // namespace
 
 int main(int argc, char **argv)
 {
     namespace po = boost::program_options;
+
+    const LoggingSession logging{argv[0]};
 
     po::positional_options_description pdesc;
     pdesc.add("input", 1);
@@ -178,16 +204,15 @@ int main(int argc, char **argv)
     ORB_SLAM::ORBVocabulary vocabulary;
 
     if (!vocabFileName.empty()) {
-        std::print("reading vocabulary \"{}\"...", vocabFileName.string());
+        ngx::Log("reading vocabulary \"{}\"", vocabFileName.string());
 
         if (!vocabulary.loadFromTextFile(vocabFileName.string())) {
-            std::println(" failed");
-            std::println(stderr, "error: cannot read vocabulary \"{}\"",
-                         vocabFileName.string());
+            ngx::Log(ngx::Error, "cannot read vocabulary \"{}\"",
+                     vocabFileName.string());
             return EXIT_FAILURE;
         }
 
-        std::println(" done");
+        ngx::Log("read vocabulary of {} words", vocabulary.size());
     }
 
     // Create KeyFrame database
@@ -204,8 +229,8 @@ int main(int argc, char **argv)
     cv::FileStorage calibFs(calibFileName.string(), cv::FileStorage::READ);
 
     if (!calibFs.isOpened()) {
-        std::println(stderr, "error: cannot read calibration \"{}\"",
-                     calibFileName.string());
+        ngx::Log(ngx::Error, "cannot read calibration \"{}\"",
+                 calibFileName.string());
         return EXIT_FAILURE;
     }
 
@@ -218,7 +243,7 @@ int main(int argc, char **argv)
     cv::VideoCapture capture(inVideoFileName.string());
 
     if (!capture.isOpened()) {
-        std::cerr << "error: failed to open video file" << std::endl;
+        ngx::Log(ngx::Error, "cannot open video \"{}\"", inVideoFileName.string());
         return EXIT_FAILURE;
     }
 
@@ -230,7 +255,7 @@ int main(int argc, char **argv)
             features, scale, levels, fastTh, score, vars.count("no-motion-model") == 0);
     }
     catch (const std::invalid_argument& e) {
-        std::println(stderr, "error: {}", e.what());
+        ngx::Log(ngx::Error, "{}", e.what());
         return EXIT_FAILURE;
     }
 
@@ -295,7 +320,7 @@ int main(int argc, char **argv)
         vector<ORB_SLAM::KeyFrame*> vpKFs = world.GetAllKeyFrames();
         std::sort(vpKFs.begin(), vpKFs.end(), ORB_SLAM::KeyFrame::lId);
 
-        cout << endl << "Saving Keyframe Trajectory to " <<  trajFileName << endl;
+        ngx::Log("saving keyframe trajectory to \"{}\"", trajFileName.string());
         f << fixed;
 
         for(size_t i=0; i<vpKFs.size(); i++)

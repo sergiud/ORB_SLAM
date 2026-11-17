@@ -30,7 +30,8 @@
 #include<opencv2/core.hpp>
 
 #include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
-#include <cassert>
+#include <ng-log/experimental/ensure.h>
+#include <ng-log/experimental/log.h>
 
 using namespace std;
 
@@ -1701,7 +1702,9 @@ int ORBmatcher::RotationBin(float angle1, float angle2)
     int bin = round(rot*HISTO_LENGTH/fullTurn);
     if(bin==HISTO_LENGTH)
         bin=0;
-    assert(bin>=0 && bin<HISTO_LENGTH);
+    // The matchers call this for each match, so only debug builds check it.
+    nglog::experimental::Ensure(nglog::experimental::That(bin).InRange(0, HISTO_LENGTH),
+                                nglog::experimental::Debug);
     return bin;
 }
 

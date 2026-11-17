@@ -34,6 +34,8 @@
 #include <mutex>
 #include <stop_token>
 
+#include <ng-log/experimental/log.h>
+
 #ifdef HAVE_ROS
 #include <ros/ros.h>
 #endif // HAVE_ROS
@@ -661,7 +663,7 @@ void LoopClosing::CorrectLoop(std::stop_token stopToken)
     mpMatchedKF->AddLoopEdge(mpCurrentKF);
     mpCurrentKF->AddLoopEdge(mpMatchedKF);
 
-    std::cout << "Loop Closed!" << std::endl;
+    nglog::experimental::Log("loop closed between keyframes {} and {}", mpCurrentKF->mnId, mpMatchedKF->mnId);
 
     // Loop closed. Resume Local Mapping.
     mpLocalMapper->Resume();

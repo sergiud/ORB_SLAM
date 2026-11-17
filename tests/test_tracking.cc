@@ -10,12 +10,10 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <iostream>
 #include <memory>
 #include <new>
 #include <optional>
 #include <print>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -27,6 +25,7 @@
 #include "Check.h"
 #include "FramePublisher.h"
 #include "KeyFrameDatabase.h"
+#include "LogCapture.h"
 #include "Frames.h"
 #include "LocalMapping.h"
 #include "Map.h"
@@ -47,37 +46,6 @@ constexpr int levels = 8;
 constexpr int fastThreshold = 20;
 constexpr int harrisScore = 1;
 
-// Redirects a standard stream into a string while it lives.
-template<std::ostream& Stream>
-class StreamCapture
-{
-public:
-    StreamCapture()
-        : previous_{Stream.rdbuf(text_.rdbuf())}
-    {
-    }
-
-    StreamCapture(const StreamCapture&) = delete;
-    StreamCapture& operator=(const StreamCapture&) = delete;
-
-    ~StreamCapture()
-    {
-        Stream.rdbuf(previous_);
-    }
-
-    [[nodiscard]] std::string text() const
-    {
-        return text_.str();
-    }
-
-private:
-    std::ostringstream text_;
-    std::streambuf* previous_;
-};
-
-using ClogCapture = StreamCapture<std::clog>;
-using CoutCapture = StreamCapture<std::cout>;
-
 // Creates a tracker for the camera matrix without vocabulary, publishers
 // and map, which construction does not use.
 ORB_SLAM::Tracking makeTracking(const cv::Mat& K, bool useMotionModel)
@@ -88,18 +56,16 @@ ORB_SLAM::Tracking makeTracking(const cv::Mat& K, bool useMotionModel)
                               harrisScore, useMotionModel};
 }
 
-// Construction logs whether the motion model is used, one plain line each.
-void logsMotionModel(bool useMotionModel, std::string_view expected)
+// Construction logs whether the motion model is used, and warns if not.
+void logsMotionModel(bool useMotionModel, nglog::LogSeverity severity,
+                     std::string_view expected)
 {
-    std::string text;
-    {
-        ClogCapture capture;
-        makeTracking(cv::Mat1f::eye(3, 3), useMotionModel);
-        text = capture.text();
-    }
+    ORB_SLAM::tests::LogCapture capture;
+    makeTracking(cv::Mat1f::eye(3, 3), useMotionModel);
 
-    check(text == expected,
-          std::format("the log reads {:?}, got {:?}", expected, text));
+    check(capture.contains(severity, expected),
+          std::format("the log has {:?} at severity {}", expected,
+                      nglog::experimental::Name(nglog::experimental::Severity{severity})));
 }
 
 // A camera matrix that is not 3x3 is rejected with its size.
@@ -277,7 +243,7 @@ void settingsTrackerStartsEmpty()
         std::print(stream,
                    "%YAML:1.0\n"
                    "Camera.fx: 500.0\n"
-                   "Camera.fy: 500.0\n"
+                   "Camera.fy: 510.0\n"
                    "Camera.cx: 320.0\n"
                    "Camera.cy: 240.0\n"
                    "ORBextractor.nFeatures: {}\n"
@@ -291,12 +257,18 @@ void settingsTrackerStartsEmpty()
     alignas(InitialTracking) std::byte storage[sizeof(InitialTracking)];
     ORB_SLAM::tests::fillWithPattern(storage);
 
-    InitialTracking* const tracking = [&storage, &settings] {
-        // The constructor reports the settings on the standard output.
-        CoutCapture capture;
-        return new (storage)
-            InitialTracking{nullptr, nullptr, nullptr, nullptr, settings.string()};
-    }();
+    ORB_SLAM::tests::LogCapture capture;
+    InitialTracking* const tracking = new (storage)
+        InitialTracking{nullptr, nullptr, nullptr, nullptr, settings.string()};
+
+    check(capture.contains(NGLOG_INFO, "camera parameters: fx 500, fy 510"),
+          "the tracker logs the camera parameters of its settings");
+    check(capture.contains(NGLOG_INFO, std::format("ORB extractor parameters: "
+                                                   "{} features",
+                                                   features)),
+          "the tracker logs the extractor parameters of its settings");
+    check(capture.contains(NGLOG_WARNING, "motion model: disabled"),
+          "the tracker warns that its settings disable the motion model");
 
     check(tracking->mpInitializer == nullptr,
           "the tracker starts without initializer");
@@ -576,8 +548,9 @@ int main()
 {
     // The other tests construct trackers without distortion coefficients.
     emptyDistortionMeansNone();
-    logsMotionModel(true, "motion model: enabled\n");
-    logsMotionModel(false, "motion model: disabled (not recommended)\n");
+    logsMotionModel(true, NGLOG_INFO, "motion model: enabled");
+    logsMotionModel(false, NGLOG_WARNING,
+                    "motion model: disabled (not recommended)");
     rejectsCameraMatrix(cv::Mat1f::eye(2, 3),
                         "camera intrinsic matrix must be 3x3, got 2x3");
     rejectsCameraMatrix(cv::Mat{}, "camera intrinsic matrix must be 3x3, got 0x0");

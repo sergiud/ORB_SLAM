@@ -5,9 +5,11 @@
 #include "Sampling.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <numeric>
+
+#include <ng-log/experimental/ensure.h>
+#include <ng-log/experimental/log.h>
 
 namespace ORB_SLAM
 {
@@ -16,7 +18,7 @@ std::vector<std::size_t> DrawDistinctIndices(std::size_t count,
                                              std::size_t size,
                                              std::mt19937& generator)
 {
-    assert(count <= size);
+    nglog::experimental::Ensure(nglog::experimental::That(count) <= size);
 
     std::vector<std::size_t> available(size);
     std::iota(available.begin(), available.end(), std::size_t{0});

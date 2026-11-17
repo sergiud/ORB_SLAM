@@ -68,6 +68,9 @@
 
 #include "ORBextractor.h"
 
+#include <ng-log/experimental/ensure.h>
+#include <ng-log/experimental/log.h>
+
 #ifdef HAVE_ROS
 #include <ros/ros.h>
 #endif // HAVE_ROS
@@ -750,7 +753,7 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
         return;
 
     Mat image = _image.getMat(), mask = _mask.getMat();
-    assert(image.type() == CV_8UC1 );
+    nglog::experimental::Ensure(nglog::experimental::That(image.type()) == CV_8UC1, "image type");
 
     // Pre-compute the scale pyramids
     ComputePyramid(image, mask);

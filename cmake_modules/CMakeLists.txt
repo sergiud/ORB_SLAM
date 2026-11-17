@@ -31,6 +31,7 @@ find_package (Threads REQUIRED)
 find_package (g2o 2017.7.30 REQUIRED core types_sba types_slam3d types_sim3)
 find_package (OpenCV 5.0 NO_MODULE REQUIRED core calib imgproc highgui features)
 find_package (Eigen3 3.4.1...5 REQUIRED NO_MODULE)
+find_package (ng-log 0.9.0 REQUIRED COMPONENTS experimental)
 
 # Visual C++ compiler flags
 check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
@@ -127,6 +128,7 @@ target_link_libraries (ORB_SLAM
   g2o::core
   g2o::types_slam3d
   opencv_calib
+  ng-log::experimental
   opencv_imgproc
   Threads::Threads
 )
@@ -143,6 +145,7 @@ target_compile_features (run_ORB_SLAM PRIVATE cxx_std_23)
 
 target_link_libraries (run_ORB_SLAM PRIVATE
   Boost::program_options
+  ng-log::experimental
   opencv_highgui
   ORB_SLAM
   Threads::Threads

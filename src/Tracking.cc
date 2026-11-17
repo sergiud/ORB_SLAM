@@ -36,20 +36,50 @@
 #include"Optimizer.h"
 #include"PnPsolver.h"
 
-#include<iostream>
 #include<fstream>
 #include <algorithm>
 #include <format>
 #include <memory>
 #include <optional>
-#include <ostream>
 #include <ranges>
 #include <stdexcept>
+
+#include <ng-log/experimental/ensure.h>
+#include <ng-log/experimental/log.h>
 
 using namespace std;
 
 namespace ORB_SLAM
 {
+
+namespace {
+
+namespace ngx = nglog::experimental;
+
+// Logs whether the tracker predicts the pose of each frame from the motion
+// of the previous ones.
+void LogMotionModel(bool useMotionModel)
+{
+    if(useMotionModel)
+    {
+        ngx::Log("motion model: enabled");
+    }
+    else
+    {
+        ngx::Log(ngx::Warning, "motion model: disabled (not recommended)");
+    }
+}
+
+// Ensures that the extractors score keypoints in a way they know.
+void EnsureScoreType(int score)
+{
+    ngx::Ensure(score==ORBextractor::HARRIS_SCORE || score==ORBextractor::FAST_SCORE,
+                "the score type must be {} (Harris) or {} (FAST), got {}",
+                static_cast<int>(ORBextractor::HARRIS_SCORE),
+                static_cast<int>(ORBextractor::FAST_SCORE), score);
+}
+
+} // namespace
 
 Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap,
         const cv::Mat& K, const cv::Mat& distCoeffs, double fps,
@@ -97,7 +127,7 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
 
     mbRGB = 0;
 
-    assert(Score==1 || Score==0);
+    EnsureScoreType(Score);
 
     mpORBextractor = std::make_unique<ORBextractor>(nFeatures,fScaleFactor,nLevels,Score,fastTh);
 
@@ -109,10 +139,9 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     if(mbMotionModel)
     {
         mVelocity = cv::Mat::eye(4,4,CV_32F);
-        std::println(std::clog, "motion model: enabled");
     }
-    else
-        std::println(std::clog, "motion model: disabled (not recommended)");
+
+    LogMotionModel(mbMotionModel);
 }
 
 Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap, string strSettingPath):
@@ -155,25 +184,14 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     mMaxFrames = 18*fps/30;
 
 
-    cout << "Camera Parameters: " << endl;
-    cout << "- fx: " << fx << endl;
-    cout << "- fy: " << fy << endl;
-    cout << "- cx: " << cx << endl;
-    cout << "- cy: " << cy << endl;
-    cout << "- k1: " << DistCoef.at<float>(0) << endl;
-    cout << "- k2: " << DistCoef.at<float>(1) << endl;
-    cout << "- p1: " << DistCoef.at<float>(2) << endl;
-    cout << "- p2: " << DistCoef.at<float>(3) << endl;
-    cout << "- fps: " << fps << endl;
-
-
     int nRGB = fSettings["Camera.RGB"];
     mbRGB = nRGB;
 
-    if(mbRGB)
-        cout << "- color order: RGB (ignored if grayscale)" << endl;
-    else
-        cout << "- color order: BGR (ignored if grayscale)" << endl;
+    ngx::Log("camera parameters: fx {}, fy {}, cx {}, cy {}, k1 {}, k2 {}, "
+             "p1 {}, p2 {}, fps {}, color order {} (ignored if grayscale)",
+             fx, fy, cx, cy, DistCoef.at<float>(0), DistCoef.at<float>(1),
+             DistCoef.at<float>(2), DistCoef.at<float>(3), fps,
+             mbRGB ? "RGB" : "BGR");
 
     // Load ORB parameters
 
@@ -183,19 +201,14 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     int fastTh = fSettings["ORBextractor.fastTh"];
     int Score = fSettings["ORBextractor.nScoreType"];
 
-    assert(Score==1 || Score==0);
+    EnsureScoreType(Score);
 
     mpORBextractor = std::make_unique<ORBextractor>(nFeatures,fScaleFactor,nLevels,Score,fastTh);
 
-    cout << endl  << "ORB Extractor Parameters: " << endl;
-    cout << "- Number of Features: " << nFeatures << endl;
-    cout << "- Scale Levels: " << nLevels << endl;
-    cout << "- Scale Factor: " << fScaleFactor << endl;
-    cout << "- Fast Threshold: " << fastTh << endl;
-    if(Score==0)
-        cout << "- Score: HARRIS" << endl;
-    else
-        cout << "- Score: FAST" << endl;
+    ngx::Log("ORB extractor parameters: {} features, {} scale levels, "
+             "scale factor {}, FAST threshold {}, {} score",
+             nFeatures, nLevels, fScaleFactor, fastTh,
+             Score==ORBextractor::HARRIS_SCORE ? "Harris" : "FAST");
 
 
     // ORB extractor for initialization
@@ -208,10 +221,9 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     if(mbMotionModel)
     {
         mVelocity = cv::Mat::eye(4,4,CV_32F);
-        cout << endl << "Motion Model: Enabled" << endl << endl;
     }
-    else
-        cout << endl << "Motion Model: Disabled (not recommended, change settings UseMotionModel: 1)" << endl << endl;
+
+    LogMotionModel(mbMotionModel);
 
 
 #ifdef HAVE_ROS
@@ -365,7 +377,7 @@ void Tracking::TrackImage(const cv::Mat& im, double timestamp)
         {
             if(mpMap->KeyFramesInMap()<=5)
             {
-                std::println(std::clog, "error: camera lost; resetting...");
+                ngx::Log(ngx::Warning, "camera lost soon after initialization; resetting");
                 Reset();
                 return;
             }
@@ -519,7 +531,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         {
             if(mpMap->KeyFramesInMap()<=5)
             {
-                std::println(std::clog, "error: camera lost. resetting...");
+                ngx::Log(ngx::Warning, "camera lost soon after initialization; resetting");
                 Reset();
                 return;
             }
@@ -678,7 +690,7 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     pKFcur->UpdateConnections();
 
     // Bundle Adjustment
-    std::println(std::clog, "new map created with {} points", mpMap->MapPointsInMap());
+    ngx::Log("new map created with {} points", mpMap->MapPointsInMap());
 
     Optimizer::GlobalBundleAdjustemnt(mpMap,20);
 
@@ -692,7 +704,7 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
 
     if(!medianDepth || *medianDepth<0 || pKFcur->TrackedMapPoints()<minInitialMapPoints)
     {
-        std::println(std::clog, "wrong initialization, reseting...");
+        ngx::Log(ngx::Warning, "initial map rejected; resetting");
         Reset();
         return;
     }
@@ -787,7 +799,7 @@ bool Tracking::TrackPreviousFrame()
     mCurrentFrame.mvpMapPoints=vpMapPointMatches;
 
     if(nmatches<10) {
-        std::println(std::clog, "warning: not enough matches");
+        ngx::Log(ngx::Warning, "not enough matches to track the previous frame");
         return false;
     }
 
