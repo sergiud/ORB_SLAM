@@ -17,23 +17,23 @@ recognition by DBoW2 of Dorian Gálvez-López [2].
 
 This is a fork of the [original ORB-SLAM](https://github.com/raulmur/ORB_SLAM)
 that is free of ROS. It builds as a plain CMake project with C++23, OpenCV 5
-and current releases of g2o and Eigen, which the original no longer builds
-with, and logs through ng-log. It fixes many defects of
-the original, such as data races between its threads, memory leaks of culled
-keyframes and map points, and errors in initialization, relocalization and
-loop closing.
+and Eigen 5, which the original no longer builds with, and logs through
+ng-log. It fixes many defects of the original, such as data races between its
+threads, memory leaks of culled keyframes and map points, and errors in
+initialization, relocalization and loop closing.
 
 ## Requirements
 
 * CMake 3.28 and a C++23 compiler
 * OpenCV 5.0 with the core, calib, imgproc, highgui and features modules
-* [g2o](https://github.com/RainerKuemmerle/g2o) 2017.7.30 with the core,
+* g2o 2017.7.30 from the `cmake` branch of
+  [this fork](https://github.com/sergiud/g2o/tree/cmake) with the core,
   types_sba, types_slam3d and types_sim3 libraries, built with the same
   `-march` flags as ORB-SLAM, since the alignment of its Eigen types depends
-  on them
+  on them. The g2o releases since then changed the interface ORB-SLAM uses.
 * Eigen 3.4.1 up to version 5
 * [ng-log](https://github.com/ng-log/ng-log) 0.9.0 with its experimental C++20
-  interface
+  interface, which only its development branch provides yet
 * Boost.Program_Options 1.72
 
 DBoW2 is included in `Thirdparty/DBoW2` and built along with the library.
