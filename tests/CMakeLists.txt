@@ -7,7 +7,8 @@ foreach (_test checks frame initializer keyframe map mappoint matcher optimizer 
   add_executable (test_${_test} test_${_test}.cc Check.h Frames.h Scene.h
     Storage.h)
   target_compile_features (test_${_test} PRIVATE cxx_std_23)
-  target_link_libraries (test_${_test} PRIVATE ng-log::experimental ORB_SLAM::ORB_SLAM)
+  target_link_libraries (test_${_test} PRIVATE ng-log::experimental ORB_SLAM::ORB_SLAM
+    ${ORB_SLAM_PRINT_LIBRARIES})
 endforeach (_test)
 
 add_test (NAME ORB_SLAM/threads COMMAND test_threads)
@@ -82,7 +83,8 @@ endforeach (_case)
 
 add_executable (make_fixtures make_fixtures.cc)
 target_compile_features (make_fixtures PRIVATE cxx_std_23)
-target_link_libraries (make_fixtures PRIVATE ORB_SLAM opencv_core opencv_videoio)
+target_link_libraries (make_fixtures PRIVATE ORB_SLAM opencv_core opencv_videoio
+  ${ORB_SLAM_PRINT_LIBRARIES})
 
 add_test (NAME ORB_SLAM/cli/fixtures COMMAND make_fixtures
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

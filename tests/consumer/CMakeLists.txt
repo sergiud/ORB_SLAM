@@ -16,6 +16,9 @@ include (CTest)
 add_executable (consumer main.cc)
 
 target_compile_features (consumer PRIVATE cxx_std_23)
-target_link_libraries (consumer PRIVATE ORB_SLAM::ORB_SLAM)
+# libstdc++ provides the output of std::print to the Windows console in a
+# library of its own.
+target_link_libraries (consumer PRIVATE ORB_SLAM::ORB_SLAM
+  $<$<AND:$<PLATFORM_ID:Windows>,$<CXX_COMPILER_ID:GNU>>:stdc++exp>)
 
 add_test (NAME consumer COMMAND consumer)

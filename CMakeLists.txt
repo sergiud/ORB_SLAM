@@ -116,6 +116,11 @@ set_target_properties (ORB_SLAM PROPERTIES
   VISIBILITY_INLINES_HIDDEN ON
 )
 
+# libstdc++ provides the output of std::print to the Windows console in a
+# library of its own, which programs that print link in addition.
+set (ORB_SLAM_PRINT_LIBRARIES
+  $<$<AND:$<PLATFORM_ID:Windows>,$<CXX_COMPILER_ID:GNU>>:stdc++exp>)
+
 add_executable (run_ORB_SLAM src/run_ORB_SLAM.cc)
 
 target_compile_features (run_ORB_SLAM PRIVATE cxx_std_23)
@@ -125,6 +130,7 @@ target_link_libraries (run_ORB_SLAM PRIVATE
   ng-log::experimental
   opencv_highgui
   ORB_SLAM::ORB_SLAM
+  ${ORB_SLAM_PRINT_LIBRARIES}
   Threads::Threads
 )
 
