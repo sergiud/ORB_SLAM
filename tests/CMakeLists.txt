@@ -15,9 +15,33 @@ add_test (NAME ORB_SLAM/threads COMMAND test_threads)
 # A worker that ignores the stop request never returns.
 set_tests_properties (ORB_SLAM/threads PROPERTIES TIMEOUT 60)
 
-add_test (NAME ORB_SLAM/checks COMMAND test_checks)
-# A violated precondition that no check stops may hang the child process.
-set_tests_properties (ORB_SLAM/checks PROPERTIES TIMEOUT 60)
+# Each case violates a precondition, whose failed check aborts the program.
+# POSIX reports the abort as a signal, Windows as exit status 3.
+if (WIN32)
+  set (_aborted "^3$")
+else (WIN32)
+  set (_aborted "^Subprocess aborted$")
+endif (WIN32)
+
+foreach (_case
+    extractor-rejects-color-image
+    drawing-too-many-indices
+    converting-non-planar-vector
+    tracker-rejects-score-type
+    rotation-bin-out-of-range)
+  add_test (NAME ORB_SLAM/checks/${_case}
+    COMMAND ${CMAKE_COMMAND}
+      -DPROGRAM=$<TARGET_FILE:test_checks>
+      -DCASE=${_case}
+      -DSTATUS=${_aborted}
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/ExpectCheckFailure.cmake)
+  # A violated precondition that no check stops may hang the program. Release
+  # builds lack the checks of debug builds.
+  set_tests_properties (ORB_SLAM/checks/${_case} PROPERTIES
+    SKIP_REGULAR_EXPRESSION "skipped: "
+    TIMEOUT 60)
+endforeach (_case)
+
 add_test (NAME ORB_SLAM/frame COMMAND test_frame)
 add_test (NAME ORB_SLAM/initializer COMMAND test_initializer)
 add_test (NAME ORB_SLAM/keyframe COMMAND test_keyframe)

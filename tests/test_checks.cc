@@ -3,24 +3,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Tests of the preconditions that terminate the program with a failed check
-// when they are violated.
+// when they are violated. The program runs the case it is given, and
+// ExpectCheckFailure.cmake judges how the program terminates.
 
-#include <csignal>
+#include <array>
+#include <cstdio>
 #include <cstdlib>
 #include <format>
+#include <print>
 #include <random>
-#include <string>
 #include <string_view>
 #include <tuple>
+#include <utility>
 #include <vector>
 
-#include <sys/wait.h>
-#include <unistd.h>
+#ifdef _MSC_VER
+#include <stdlib.h>
+#endif // _MSC_VER
 
 #include <ng-log/experimental/log_call.h>
 #include <opencv2/core.hpp>
 
-#include "Check.h"
 #include "Converter.h"
 #include "ORBextractor.h"
 #include "ORBmatcher.h"
@@ -29,65 +32,31 @@
 
 namespace {
 
-using ORB_SLAM::tests::check;
-
 constexpr double framesPerSecond = 30;
 constexpr int features = 1000;
 constexpr float scaleFactor = 1.2F;
 constexpr int levels = 8;
 constexpr int fastThreshold = 20;
 
-// Runs the statement in a child process and checks that it terminates with
-// SIGABRT after writing a failed check that contains the expected text to
-// the standard error.
+// Writes the text that the failed check contains to the standard output and
+// runs the statement, which terminates the program unless the check is
+// missing.
 template<class Statement>
-void terminatesWithCheck(Statement statement, std::string_view expected)
+int terminatesWithCheck(Statement statement, std::string_view expected)
 {
-    int pipe[2];
-
-    if (::pipe(pipe) != 0) {
-        check(false, std::format("{}: the test creates a pipe", expected));
-        return;
-    }
-
-    const pid_t child = ::fork();
-
-    if (child == 0) {
-        ::dup2(pipe[1], STDERR_FILENO);
-        ::close(pipe[0]);
-        ::close(pipe[1]);
-        statement();
-        std::_Exit(EXIT_SUCCESS);
-    }
-
-    ::close(pipe[1]);
-
-    std::string error;
-    char buffer[4096];
-
-    for (ssize_t n; (n = ::read(pipe[0], buffer, sizeof buffer)) > 0;) {
-        error.append(buffer, static_cast<std::size_t>(n));
-    }
-
-    ::close(pipe[0]);
-
-    int status = 0;
-    ::waitpid(child, &status, 0);
-
-    check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT,
-          std::format("{}: the program aborts, got status {:#x}", expected,
-                      status));
-    check(error.contains(std::format("Check failed: {}", expected)),
-          std::format("the error reports \"Check failed: {}\", got {:?}",
-                      expected, error));
+    std::println("{}", expected);
+    // The output must outlive the termination, which flushes no streams.
+    std::fflush(stdout);
+    statement();
+    return EXIT_SUCCESS;
 }
 
 // The extractor detects features in grayscale images only.
-void extractorRejectsColorImage()
+int extractorRejectsColorImage()
 {
     constexpr int size = 64;
 
-    terminatesWithCheck(
+    return terminatesWithCheck(
         [] {
             ORB_SLAM::ORBextractor extractor{
                 features, scaleFactor, levels,
@@ -101,12 +70,12 @@ void extractorRejectsColorImage()
 }
 
 // More distinct indices than available cannot be drawn.
-void drawingTooManyIndices()
+int drawingTooManyIndices()
 {
     constexpr std::size_t count = 3;
     constexpr std::size_t size = 2;
 
-    terminatesWithCheck(
+    return terminatesWithCheck(
         [count, size] {
             std::mt19937 generator;
             std::ignore =
@@ -116,9 +85,9 @@ void drawingTooManyIndices()
 }
 
 // A planar vector has two rows or two columns.
-void convertingNonPlanarVector()
+int convertingNonPlanarVector()
 {
-    terminatesWithCheck(
+    return terminatesWithCheck(
         [] {
             std::ignore = ORB_SLAM::Converter::toVector2d(
                 cv::Mat::zeros(3, 1, CV_32F));
@@ -127,11 +96,11 @@ void convertingNonPlanarVector()
 }
 
 // The extractors score keypoints with Harris (0) or FAST (1) only.
-void trackerRejectsScoreType()
+int trackerRejectsScoreType()
 {
     constexpr int score = 2;
 
-    terminatesWithCheck(
+    return terminatesWithCheck(
         [] {
             ORB_SLAM::Tracking{nullptr, nullptr, nullptr,
                                cv::Mat1f::eye(3, 3), cv::Mat{},
@@ -152,28 +121,53 @@ public:
 
 // A rotation between angles in degrees falls into one of the bins, which
 // debug builds check.
-void rotationBinOutOfRange()
+int rotationBinOutOfRange()
 {
     // A rotation one bin past the last one, since the bins are 12 degrees
     // wide.
     constexpr float outOfRange = 372;
 
-    if constexpr (nglog::experimental::IsDebugEnabled()) {
-        terminatesWithCheck(
-            [outOfRange] { std::ignore = BinningMatcher::RotationBin(outOfRange, 0); },
-            "lhs in range");
+    if constexpr (!nglog::experimental::IsDebugEnabled()) {
+        std::println(stderr, "skipped: the checks of debug builds are disabled");
+        return EXIT_SUCCESS;
     }
+
+    return terminatesWithCheck(
+        [outOfRange] { std::ignore = BinningMatcher::RotationBin(outOfRange, 0); },
+        "lhs in range");
 }
 
 } // namespace
 
-int main()
+int main(int argc, char** argv)
 {
-    extractorRejectsColorImage();
-    drawingTooManyIndices();
-    convertingNonPlanarVector();
-    trackerRejectsScoreType();
-    rotationBinOutOfRange();
+#ifdef _MSC_VER
+    // Debug builds of MSVC report an abort in a dialog that waits for the user.
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+#endif // _MSC_VER
 
-    return ORB_SLAM::tests::exitStatus();
+    constexpr std::array cases{
+        std::pair{std::string_view{"extractor-rejects-color-image"},
+                  &extractorRejectsColorImage},
+        std::pair{std::string_view{"drawing-too-many-indices"},
+                  &drawingTooManyIndices},
+        std::pair{std::string_view{"converting-non-planar-vector"},
+                  &convertingNonPlanarVector},
+        std::pair{std::string_view{"tracker-rejects-score-type"},
+                  &trackerRejectsScoreType},
+        std::pair{std::string_view{"rotation-bin-out-of-range"},
+                  &rotationBinOutOfRange},
+    };
+
+    if (argc == 2) {
+        for (const auto& [name, run] : cases) {
+            if (name == argv[1]) {
+                return run();
+            }
+        }
+    }
+
+    std::println(stderr, "usage: test_checks <case>, got {} arguments",
+                 argc - 1);
+    return EXIT_FAILURE;
 }
