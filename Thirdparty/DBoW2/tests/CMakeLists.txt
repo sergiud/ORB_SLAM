@@ -5,7 +5,7 @@
 include (CheckCXXCompilerFlag)
 
 add_executable (test_vocabulary test_vocabulary.cpp)
-target_link_libraries (test_vocabulary PRIVATE DBoW2)
+target_link_libraries (test_vocabulary PRIVATE DBoW2::DBoW2)
 
 # Hardened builds initialize local variables with zero. The test does the
 # same, so that a read of an uninitialized value behaves the same in every

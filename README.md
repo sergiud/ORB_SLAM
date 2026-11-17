@@ -47,9 +47,10 @@ If you use ORB-SLAM in an academic work, please cite:
 
 ##2.1 Boost
 
-The SLAM library runs its threads with the C++ standard library and needs a
-compiler that supports C++23. The command-line program `run_ORB_SLAM` parses
-its options with Boost.Program_Options.
+ORB-SLAM builds with CMake 3.28 or later. The SLAM library runs its threads
+with the C++ standard library and needs a compiler that supports C++23. The
+command-line program `run_ORB_SLAM` parses its options with
+Boost.Program_Options.
 
 	sudo apt-get install libboost-program-options-dev
 
@@ -67,7 +68,7 @@ ORB-SLAM needs Eigen 3.4.1 or later, up to version 5. g2o needs BLAS and LAPACK 
 ##2.4 DBoW2 (included in Thirdparty)
 We make use of some components of the DBoW2 library (see original at https://github.com/dorian3d/DBoW2) for place recognition and feature matching. ORB-SLAM builds it along with the library.
 
-##2.6 ng-log
+##2.5 ng-log
 ORB-SLAM logs its messages and checks its preconditions with the experimental C++20 interface of ng-log (https://github.com/ng-log/ng-log). Install ng-log 0.9.0 or later built with that interface, which CMake finds as the `experimental` component of the ng-log package. `run_ORB_SLAM` writes the messages to the standard error.
 
 
@@ -85,7 +86,7 @@ ORB-SLAM logs its messages and checks its preconditions with the experimental C+
 		cmake --build build
 		ctest --test-dir build
 
-4. Optionally install the library, its headers and the CMake package `orb_slam`, which `find_package (orb_slam)` finds:
+4. Optionally install the library, its headers, `run_ORB_SLAM` and the CMake package `orb_slam`, which `find_package (orb_slam)` finds. The variables of CMake's `GNUInstallDirs` module, such as `CMAKE_INSTALL_LIBDIR`, choose the directories below the prefix:
 
 		cmake --install build --prefix PATH_TO_INSTALLATION
 

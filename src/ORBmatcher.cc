@@ -26,7 +26,7 @@
 
 #include<opencv2/core.hpp>
 
-#include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
+#include <FeatureVector.h>
 #include <ng-log/experimental/ensure.h>
 #include <ng-log/experimental/log.h>
 

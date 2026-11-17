@@ -7,7 +7,7 @@ foreach (_test checks frame initializer keyframe map mappoint matcher optimizer 
   add_executable (test_${_test} test_${_test}.cc Check.h Frames.h Scene.h
     Storage.h)
   target_compile_features (test_${_test} PRIVATE cxx_std_23)
-  target_link_libraries (test_${_test} PRIVATE ng-log::experimental ORB_SLAM)
+  target_link_libraries (test_${_test} PRIVATE ng-log::experimental ORB_SLAM::ORB_SLAM)
 endforeach (_test)
 
 add_test (NAME ORB_SLAM/threads COMMAND test_threads)
@@ -113,3 +113,51 @@ foreach (_case
     FIXTURES_REQUIRED black_video
     TIMEOUT 60)
 endforeach (_case)
+
+# The installed package builds a program the way other projects use it.
+# The prefix is removed first, so that files of an earlier installation do
+# not hide one that the install rules miss.
+set (_prefix ${PROJECT_BINARY_DIR}/consumer-prefix)
+
+add_test (NAME ORB_SLAM/package/clean
+  COMMAND ${CMAKE_COMMAND} -E rm -rf ${_prefix} ${PROJECT_BINARY_DIR}/consumer
+)
+set_tests_properties (ORB_SLAM/package/clean PROPERTIES
+  FIXTURES_SETUP package_clean
+)
+
+add_test (NAME ORB_SLAM/package/install
+  COMMAND ${CMAKE_COMMAND} --install ${PROJECT_BINARY_DIR}
+    --prefix ${_prefix}
+    --config $<CONFIG>
+)
+set_tests_properties (ORB_SLAM/package/install PROPERTIES
+  FIXTURES_REQUIRED package_clean
+  FIXTURES_SETUP package_installed
+)
+
+# The consumer compiles the headers of g2o, which choose the alignment of
+# their Eigen types by the flags, so it gets the flags of this build.
+add_test (NAME ORB_SLAM/package/consumer
+  COMMAND ${CMAKE_CTEST_COMMAND}
+    --build-and-test ${CMAKE_CURRENT_SOURCE_DIR}/consumer
+      ${PROJECT_BINARY_DIR}/consumer
+    --build-generator ${CMAKE_GENERATOR}
+    --build-config $<CONFIG>
+    --build-options
+      -DCMAKE_PREFIX_PATH=${_prefix}
+      -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+      -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+      -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+      -DCMAKE_BUILD_TYPE=$<CONFIG>
+      -DEigen3_DIR=${Eigen3_DIR}
+      -Dg2o_DIR=${g2o_DIR}
+      -Dng-log_DIR=${ng-log_DIR}
+      -DOpenCV_DIR=${OpenCV_DIR}
+    --test-command ${CMAKE_CTEST_COMMAND} --output-on-failure
+      --build-config $<CONFIG>
+)
+set_tests_properties (ORB_SLAM/package/consumer PROPERTIES
+  FIXTURES_REQUIRED package_installed
+  TIMEOUT 600
+)
