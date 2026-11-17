@@ -28,8 +28,6 @@ The code is in the public domain.
 * All code in **DBoW2** folder.
 This is a modified version of the [DBoW2](https://github.com/dorian3d/DBoW2) library. All files included are BSD licensed.
 
-* All code in **g2o** folder.
-This is a modified version of [g2o](https://github.com/RainerKuemmerle/g2o). All files included are BSD licensed.
 
 #####Library dependencies 
 
@@ -40,6 +38,9 @@ BSD licensed.
 
 * **Eigen3**.
 For versions greater than 3.1.1 is MPL2, earlier versions are LGPLv3.
+
+* **g2o**.
+BSD licensed.
 
 * **BLAS** (required by g2o).
 [Freely-available software](http://www.netlib.org/blas/#_licensing).

@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2015 Dorian Galvez-Lopez <http://doriangalvez.com> (Universidad de Zaragoza)
+// SPDX-FileCopyrightText: 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+//
+// SPDX-License-Identifier: BSD-3-Clause
+
 /**
  * File: BowVector.cpp
  * Date: March 2011

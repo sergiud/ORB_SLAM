@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: REUSE
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lint
+        uses: fsfe/reuse-action@v6

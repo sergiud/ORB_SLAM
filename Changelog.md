@@ -1,3 +1,10 @@
+<!--
+SPDX-FileCopyrightText: 2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
+SPDX-FileCopyrightText: 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 #Changelog of ORB-SLAM Monocular
 
 ## 1.0.1 (18-01-2016)
