@@ -5,124 +5,119 @@ SPDX-FileCopyrightText: 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-##Check out our new [ORB-SLAM2](https://github.com/raulmur/ORB_SLAM2) (Monocular, Stereo and RGB-D)
----
 # ORB-SLAM Monocular
-**Authors:** [Raul Mur-Artal](http://webdiis.unizar.es/~raulmur/), [Juan D. Tardos](http://webdiis.unizar.es/~jdtardos/), [J. M. M. Montiel](http://webdiis.unizar.es/~josemari/) and [Dorian Galvez-Lopez](http://doriangalvez.com/) ([DBoW2](https://github.com/dorian3d/DBoW2))
 
-**Current version:** 2.0.0 (see [Changelog.md](https://github.com/raulmur/ORB_SLAM/blob/master/Changelog.md))
+ORB-SLAM computes the trajectory of a single camera and a sparse 3D map of the
+scene in real time. It closes large loops and relocalizes from wide baselines,
+in scenes from hand-held sequences to city blocks driven by car. Raúl
+Mur-Artal, J. M. M. Montiel and Juan D. Tardós created it [1], with place
+recognition by DBoW2 of Dorian Gálvez-López [2].
 
-ORB-SLAM is a versatile and accurate Monocular SLAM solution able to compute in real-time the camera trajectory and a sparse 3D reconstruction of the scene in a wide variety of environments, ranging from small hand-held sequences to a car driven around several city blocks. It is able to close large loops and perform global relocalisation in real-time and from wide baselines.
+## Motivation
 
-See our project webpage: http://webdiis.unizar.es/~raulmur/orbslam/
+This is a fork of the [original ORB-SLAM](https://github.com/raulmur/ORB_SLAM)
+that is free of ROS. It builds as a plain CMake project with C++23, OpenCV 5
+and current releases of g2o and Eigen, which the original no longer builds
+with, and logs through ng-log. It fixes many defects of
+the original, such as data races between its threads, memory leaks of culled
+keyframes and map points, and errors in initialization, relocalization and
+loop closing.
 
-###Related Publications:
+## Requirements
 
-[1] Raúl Mur-Artal, J. M. M. Montiel and Juan D. Tardós. **ORB-SLAM: A Versatile and Accurate Monocular SLAM System**. *IEEE Transactions on Robotics,* vol. 31, no. 5, pp. 1147-1163, 2015. (2015 IEEE Transactions on Robotics **Best Paper Award**). **[PDF](http://webdiis.unizar.es/~raulmur/MurMontielTardosTRO15.pdf)**.
+* CMake 3.28 and a C++23 compiler
+* OpenCV 5.0 with the core, calib, imgproc, highgui and features modules
+* [g2o](https://github.com/RainerKuemmerle/g2o) 2017.7.30 with the core,
+  types_sba, types_slam3d and types_sim3 libraries, built with the same
+  `-march` flags as ORB-SLAM, since the alignment of its Eigen types depends
+  on them
+* Eigen 3.4.1 up to version 5
+* [ng-log](https://github.com/ng-log/ng-log) 0.9.0 with its experimental C++20
+  interface
+* Boost.Program_Options 1.72
 
-[2] Dorian Gálvez-López and Juan D. Tardós. **Bags of Binary Words for Fast Place Recognition in Image Sequences**. *IEEE Transactions on Robotics,* vol. 28, no. 5, pp.  1188-1197, 2012. **[PDF](http://doriangalvez.com/php/dl.php?dlp=GalvezTRO12.pdf)**.
+DBoW2 is included in `Thirdparty/DBoW2` and built along with the library.
 
+## Getting Started
 
-#1. License
+Build ORB-SLAM, run its tests and unpack the vocabulary:
 
-ORB-SLAM is released under the [GNU General Public License version 3 or later](LICENSES/GPL-3.0-or-later.txt). Code derived from other projects keeps its BSD license in addition, as the SPDX header of each file states, and [LICENSES](LICENSES) holds the text of every license. For a list of all code/library dependencies and their licenses, please see [Dependencies.md](Dependencies.md).
+```sh
+git clone https://github.com/sergiud/ORB_SLAM.git
+cd ORB_SLAM
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-march=native
+cmake --build build
+ctest --test-dir build
+tar -xzf Data/ORBvoc.txt.tar.gz -C Data
+```
 
-No closed-source license is offered for this version. It combines the original ORB-SLAM with changes by other authors, so that only all copyright holders together could grant one. The GPL permits commercial use, provided that works based on this version are distributed under the GPL as well.
+Then run it on a video:
 
-If you use ORB-SLAM in an academic work, please cite:
+```sh
+build/run_ORB_SLAM --vocabulary Data/ORBvoc.txt --calibration camera.yml video.mp4
+```
 
-    @article{murAcceptedTRO2015,
-      title={{ORB-SLAM}: a Versatile and Accurate Monocular {SLAM} System},
-      author={Mur-Artal, Ra\'ul, Montiel, J. M. M. and Tard\'os, Juan D.},
-      journal={IEEE Transactions on Robotics},
-      volume={31},
-      number={5},
-      pages={1147--1163},
-      doi = {10.1109/TRO.2015.2463671},
-      year={2015}
-     }
+The input is anything that OpenCV's `cv::VideoCapture` opens, such as a video
+file or images named by a pattern like `rgb/%d.png`. The calibration is a
+`cv::FileStorage` file with the camera matrix and 4 or 5 distortion
+coefficients ordered k1, k2, p1, p2 and k3:
 
+```yaml
+%YAML:1.0
+camera_matrix: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 481.2, 0., 319.5, 0., 480., 239.5, 0., 0., 1. ]
+distortion_coefficients: !!opencv-matrix
+   rows: 1
+   cols: 4
+   dt: d
+   data: [ 0., 0., 0., 0. ]
+```
 
-#2. Prerequisites (dependencies)
+Tracking works best with texture, translation at the start and few moving
+objects. Pure rotations during exploration lose it, and planar scenes may
+not initialize for some camera motions [1].
 
-##2.1 Boost
+## Advanced Usage
 
-ORB-SLAM builds with CMake 3.28 or later. The SLAM library runs its threads
-with the C++ standard library and needs a compiler that supports C++23. The
-command-line program `run_ORB_SLAM` parses its options with
-Boost.Program_Options.
+`--trajectory <file>` writes the pose of each keyframe at the end, one line
+each with the time stamp, the position and the orientation as a quaternion
+x, y, z, w. `--no-video` hides the window of tracked features, and `--help`
+lists the options of the feature extraction and the motion model.
 
-	sudo apt-get install libboost-program-options-dev
+`cmake --install build --prefix <prefix>` installs the library, its headers,
+`run_ORB_SLAM` and a CMake package into the directories of `GNUInstallDirs`.
+Other projects then link against it:
 
-##2.2 OpenCV
-We use OpenCV to manipulate images and features. ORB-SLAM needs OpenCV 5.0 or later with the core, calib, imgproc, highgui and features modules. Download and install instructions can be found at: http://opencv.org/
+```cmake
+find_package (orb_slam 2.0 REQUIRED)
+target_link_libraries (app PRIVATE ORB_SLAM::ORB_SLAM)
+```
 
-##2.3 g2o and Eigen
-We use g2o (https://github.com/RainerKuemmerle/g2o) to perform optimizations. Install g2o 2017.7.30 or later with its core, types_sba, types_slam3d and types_sim3 libraries. Build g2o with the same `-march` flags as ORB-SLAM, since g2o chooses the alignment of its Eigen types by them and the two do not link otherwise.
-ORB-SLAM needs Eigen 3.4.1 or later, up to version 5. g2o needs BLAS and LAPACK in addition.
+`Data/Settings.yaml` shows the settings the tracker reads when the library
+constructs it from a settings file.
 
-	sudo apt-get install libblas-dev
-	sudo apt-get install liblapack-dev
-	sudo apt-get install libeigen3-dev
+## Licensing
 
-##2.4 DBoW2 (included in Thirdparty)
-We make use of some components of the DBoW2 library (see original at https://github.com/dorian3d/DBoW2) for place recognition and feature matching. ORB-SLAM builds it along with the library.
+ORB-SLAM is released under the
+[GNU General Public License version 3 or later](LICENSES/GPL-3.0-or-later.txt).
+Code derived from other projects keeps its BSD license in addition, as the
+SPDX header of each file states. [Dependencies.md](Dependencies.md) lists the
+licenses of the dependencies.
 
-##2.5 ng-log
-ORB-SLAM logs its messages and checks its preconditions with the experimental C++20 interface of ng-log (https://github.com/ng-log/ng-log). Install ng-log 0.9.0 or later built with that interface, which CMake finds as the `experimental` component of the ng-log package. `run_ORB_SLAM` writes the messages to the standard error.
+No closed-source license is offered for this version. It combines the original
+ORB-SLAM with changes by other authors, so that only all copyright holders
+together could grant one. The GPL permits commercial use, provided that works
+based on this version are distributed under the GPL as well.
 
+If you use ORB-SLAM in academic work, please cite [1], and [2] for place
+recognition:
 
-#3. Installation
-
-1. Install the dependencies of section 2, g2o as section 2.3 describes.
-
-2. Clone the repository:
-
-		git clone https://github.com/raulmur/ORB_SLAM.git ORB_SLAM
-
-3. Build ORB-SLAM and run its tests. In the ORB_SLAM root execute:
-
-		cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-march=native
-		cmake --build build
-		ctest --test-dir build
-
-4. Optionally install the library, its headers, `run_ORB_SLAM` and the CMake package `orb_slam`, which `find_package (orb_slam)` finds. The variables of CMake's `GNUInstallDirs` module, such as `CMAKE_INSTALL_LIBDIR`, choose the directories below the prefix:
-
-		cmake --install build --prefix PATH_TO_INSTALLATION
-
-#4. Usage
-
-1. Uncompress the vocabulary in `Data/ORBvoc.txt.tar.gz`, since ORB-SLAM reads the text file much faster.
-
-2. Run ORB-SLAM on a video with the calibration of its camera:
-
-		build/run_ORB_SLAM --vocabulary Data/ORBvoc.txt --calibration CALIBRATION_FILE --input VIDEO
-
-  The input is anything that OpenCV's `cv::VideoCapture` opens, such as a video file or a sequence of images named by a pattern like `rgb/%d.png`. A window shows the tracked features unless `--no-video` is given. With `--trajectory FILE`, ORB-SLAM writes the pose of each keyframe at the end, one line each with the time stamp, the position and the orientation as a quaternion in the order x, y, z, w. `run_ORB_SLAM --help` lists all options.
-
-3. The calibration file is a YAML file of OpenCV's `cv::FileStorage` with the camera matrix and the distortion coefficients of OpenCV's camera model, 4 or 5 values ordered k1, k2, p1, p2 and k3:
-
-		%YAML:1.0
-		camera_matrix: !!opencv-matrix
-		   rows: 3
-		   cols: 3
-		   dt: d
-		   data: [ 481.2, 0., 319.5, 0., 480., 239.5, 0., 0., 1. ]
-		distortion_coefficients: !!opencv-matrix
-		   rows: 1
-		   cols: 4
-		   dt: d
-		   data: [ 0., 0., 0., 0. ]
-
-  `Data/Settings.yaml` shows the settings that the tracker reads when the library constructs it from a settings file.
-
-#5. Failure Modes
-
-You should expect to achieve good results in sequences similar to those in which we show results in our paper [1], in terms of camera movement and texture in the environment. In general our Monocular SLAM solution is expected to have a bad time in the following situations:
-- No translation at system initialization (or too much rotation).
-- Pure rotations in exploration.
-- Low texture environments.
-- Many (or big) moving objects, especially if they move slowly.
-
-The system is able to initialize from planar and non-planar scenes. In the case of planar scenes, depending on the camera movement relative to the plane, it is possible that the system refuses to initialize, see the paper [1] for details. 
-
+1. Raúl Mur-Artal, J. M. M. Montiel and Juan D. Tardós. ORB-SLAM: A Versatile
+   and Accurate Monocular SLAM System. *IEEE Transactions on Robotics*, 31(5),
+   1147–1163, 2015. [doi:10.1109/TRO.2015.2463671](https://doi.org/10.1109/TRO.2015.2463671)
+2. Dorian Gálvez-López and Juan D. Tardós. Bags of Binary Words for Fast Place
+   Recognition in Image Sequences. *IEEE Transactions on Robotics*, 28(5),
+   1188–1197, 2012. [doi:10.1109/TRO.2012.2197158](https://doi.org/10.1109/TRO.2012.2197158)
