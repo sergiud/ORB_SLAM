@@ -133,7 +133,7 @@ void trackerRejectsScoreType()
 
     terminatesWithCheck(
         [] {
-            ORB_SLAM::Tracking{nullptr, nullptr, nullptr, nullptr,
+            ORB_SLAM::Tracking{nullptr, nullptr, nullptr,
                                cv::Mat1f::eye(3, 3), cv::Mat{},
                                framesPerSecond, features, scaleFactor,
                                levels, fastThreshold, score,

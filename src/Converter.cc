@@ -22,9 +22,6 @@
 
 #include "Converter.h"
 
-#ifdef HAVE_ROS
-#include "ros/ros.h"
-#endif // HAVE_ROS
 
 #include <ng-log/experimental/ensure.h>
 #include <ng-log/experimental/log.h>

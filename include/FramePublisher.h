@@ -27,9 +27,6 @@
 #include "Map.h"
 #include "ORB_SLAM_export.h"
 
-#ifdef HAVE_ROS
-#include "ros/ros.h"
-#endif // HAVE_ROS
 
 #include<opencv2/core.hpp>
 
@@ -48,15 +45,10 @@ public:
 
     void Update(Tracking *pTracker);
 
-    void Refresh();
-
     void SetMap(Map* pMap);
     cv::Mat DrawFrame();
 
 protected:
-
-
-    void PublishFrame();
 
     void DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText);
 
@@ -70,14 +62,8 @@ protected:
     vector<cv::KeyPoint> mvIniKeys;
     vector<int> mvIniMatches;
 
-#ifdef HAVE_ROS
-    ros::NodeHandle mNH;
-    ros::Publisher mImagePub;
-#endif // HAVE_ROS
 
     int mState;
-
-    bool mbUpdated;
 
     Map* mpMap;
 

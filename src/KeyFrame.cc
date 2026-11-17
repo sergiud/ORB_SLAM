@@ -21,9 +21,6 @@
 
 #include "KeyFrame.h"
 #include "Converter.h"
-#ifdef HAVE_ROS
-#include <ros/ros.h>
-#endif // HAVE_ROS
 
 namespace ORB_SLAM
 {

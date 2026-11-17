@@ -50,9 +50,6 @@ BSD licensed.
 * **ng-log**.
 BSD licensed.
 
-* **ROS**.
-BSD licensed. In the manifest.xml the only declared package dependencies are roscpp, tf, sensor_msgs, opencv2, image_transport, cv_bridge, which are all BSD licensed.
-
 
 
 Updated: 19/01/2016 Raúl Mur Artal

@@ -26,10 +26,6 @@
 #include <opencv2/highgui.hpp>
 
 #include <mutex>
-#ifdef HAVE_ROS
-#include<ros/ros.h>
-#include <cv_bridge/cv_bridge.h>
-#endif // HAVE_ROS
 
 namespace ORB_SLAM
 {
@@ -38,13 +34,6 @@ FramePublisher::FramePublisher()
 {
     mState=Tracking::SYSTEM_NOT_READY;
     mIm = cv::Mat(480,640,CV_8UC3, cv::Scalar(0,0,0));
-    mbUpdated = true;
-
-#ifdef HAVE_ROS
-    mImagePub = mNH.advertise<sensor_msgs::Image>("ORB_SLAM/Frame",10,true);
-#endif // HAVE_ROS
-
-    PublishFrame();
 }
 
 void FramePublisher::SetMap(Map *pMap)
@@ -52,14 +41,6 @@ void FramePublisher::SetMap(Map *pMap)
     mpMap = pMap;
 }
 
-void FramePublisher::Refresh()
-{
-    if(mbUpdated)
-    {
-        PublishFrame();
-        mbUpdated = false;
-    }
-}
 
 cv::Mat FramePublisher::DrawFrame()
 {
@@ -145,25 +126,11 @@ cv::Mat FramePublisher::DrawFrame()
     return imWithInfo;
 }
 
-void FramePublisher::PublishFrame()
-{
-#ifdef HAVE_ROS
-    cv::Mat im = DrawFrame();
-    cv_bridge::CvImage rosImage;
-    rosImage.image = im.clone();
-    rosImage.header.stamp = ros::Time::now();
-    rosImage.encoding = "bgr8";
-
-    mImagePub.publish(rosImage.toImageMsg());
-    ros::spinOnce();
-#endif // HAVE_ROS
-}
-
 void FramePublisher::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
 {
     stringstream s;
     if(nState==Tracking::NO_IMAGES_YET)
-        s << "WAITING FOR IMAGES. (Topic: /camera/image_raw)";
+        s << "WAITING FOR IMAGES";
     else if(nState==Tracking::NOT_INITIALIZED)
         s << " NOT INITIALIZED ";
     else if(nState==Tracking::INITIALIZING)
@@ -208,8 +175,6 @@ void FramePublisher::Update(Tracking *pTracker)
         mvIniMatches=pTracker->mvIniMatches;
     }
     mState=static_cast<int>(pTracker->mLastProcessedState);
-
-    mbUpdated=true;
 }
 
 } //namespace ORB_SLAM

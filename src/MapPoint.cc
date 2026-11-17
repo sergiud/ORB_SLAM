@@ -26,9 +26,6 @@
 #include <cmath>
 #include <vector>
 
-#ifdef HAVE_ROS
-#include "ros/ros.h"
-#endif // HAVE_ROS
 
 namespace ORB_SLAM
 {

@@ -28,9 +28,6 @@
 #include <optional>
 #include <stop_token>
 
-#ifdef HAVE_ROS
-#include <ros/ros.h>
-#endif // HAVE_ROS
 
 namespace ORB_SLAM
 {
@@ -53,70 +50,6 @@ void LocalMapping::SetTracker(Tracking *pTracker)
 
 void LocalMapping::Run(std::stop_token stopToken)
 {
-#ifdef HAVE_ROS
-    ros::Rate r(500);
-    while(ros::ok())
-    {
-        // Check if there are keyframes in the queue
-        if(CheckNewKeyFrames())
-        {
-            // Tracking will see that Local Mapping is busy
-            SetAcceptKeyFrames(false);
-
-            // BoW conversion and insertion in Map
-            ProcessNewKeyFrame();
-
-            // Check recent MapPoints
-            MapPointCulling();
-
-            // Triangulate new MapPoints
-            CreateNewMapPoints();
-
-            // Find more matches in neighbor keyframes and fuse point duplications
-            SearchInNeighbors();
-
-            mbAbortBA = false;
-
-            if(!CheckNewKeyFrames() && !pauseRequested())
-            {
-                // Local BA
-                Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA);
-
-                // Check redundant local Keyframes
-                KeyFrameCulling();
-
-                mpMap->SetFlagAfterBA();
-
-                // Tracking will see Local Mapping idle
-                if(!CheckNewKeyFrames())
-                    SetAcceptKeyFrames(true);
-            }
-
-            if (mpLoopCloser)
-                mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
-        }
-
-        // Safe area to pause
-        if(Pause())
-        {
-            ros::Rate r2(1000);
-            while(isPaused() && ros::ok())
-            {
-                r2.sleep();
-            }
-
-            SetAcceptKeyFrames(true);
-        }
-
-        ResetIfRequested();
-
-        DropErasedObjects();
-        mParticipant.Quiesce();
-        mpMap->Reclaim();
-
-        r.sleep();
-    }
-#else
     while(!stopToken.stop_requested())
     {
         // Check if there are keyframes in the queue
@@ -182,7 +115,6 @@ void LocalMapping::Run(std::stop_token stopToken)
             });
         }
     }
-#endif // HAVE_ROS
 }
 
 void LocalMapping::DropErasedObjects()
@@ -760,24 +692,11 @@ void LocalMapping::RequestReset()
         mbResetRequested = true;
     }
 
-#ifdef HAVE_ROS
-    ros::Rate r(500);
-    while(ros::ok())
-    {
-        {
-        std::scoped_lock lock2{mMutexReset};
-        if(!mbResetRequested)
-            break;
-        }
-        r.sleep();
-    }
-#else
     WakeUp();
 
     std::unique_lock lock2{mMutexReset};
     // The worker may have reset already, before this thread waits.
     resetDone.wait(lock2, [this] { return !mbResetRequested; });
-#endif // HAVE_ROS
 }
 
 void LocalMapping::ResetIfRequested()

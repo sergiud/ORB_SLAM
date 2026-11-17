@@ -40,7 +40,6 @@
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "Map.h"
-#include "MapPublisher.h"
 #include "ORBVocabulary.h"
 #include "Tracking.h"
 
@@ -197,7 +196,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    // Create Frame Publisher for image_view
+    // Draws the tracked features into the video
     ORB_SLAM::FramePublisher FramePub;
 
     // Load ORB vocabulary
@@ -222,9 +221,6 @@ int main(int argc, char **argv)
     ORB_SLAM::Map world;
 
     FramePub.SetMap(&world);
-
-    //Create Map Publisher for Rviz
-    ORB_SLAM::MapPublisher MapPub(&world);
 
     cv::FileStorage calibFs(calibFileName.string(), cv::FileStorage::READ);
 
@@ -251,7 +247,7 @@ int main(int argc, char **argv)
     std::optional<ORB_SLAM::Tracking> trackerStorage;
 
     try {
-        trackerStorage.emplace(&vocabulary, &FramePub, &MapPub, &world, cv::Mat1f(K), cv::Mat1f(distCoeffs), capture.get(cv::CAP_PROP_FPS),
+        trackerStorage.emplace(&vocabulary, &FramePub, &world, cv::Mat1f(K), cv::Mat1f(distCoeffs), capture.get(cv::CAP_PROP_FPS),
             features, scale, levels, fastTh, score, vars.count("no-motion-model") == 0);
     }
     catch (const std::invalid_argument& e) {
@@ -290,11 +286,6 @@ int main(int argc, char **argv)
         capture >> image;
 
         if (!image.empty()) {
-            FramePub.Refresh();
-            MapPub.Refresh();
-
-            tracker.CheckResetByPublishers();
-
             cv::Mat tmp;
             cv::cvtColor(image, tmp, cv::COLOR_BGR2GRAY);
             tracker.Track(tmp, capture.get(cv::CAP_PROP_POS_MSEC) / millisecondsPerSecond);

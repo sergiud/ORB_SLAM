@@ -30,7 +30,6 @@
 #include "LocalMapping.h"
 #include "Map.h"
 #include "MapPoint.h"
-#include "MapPublisher.h"
 #include "Scene.h"
 #include "Storage.h"
 #include "Tracking.h"
@@ -50,7 +49,7 @@ constexpr int harrisScore = 1;
 // and map, which construction does not use.
 ORB_SLAM::Tracking makeTracking(const cv::Mat& K, bool useMotionModel)
 {
-    return ORB_SLAM::Tracking{nullptr, nullptr, nullptr, nullptr, K,
+    return ORB_SLAM::Tracking{nullptr, nullptr, nullptr, K,
                               cv::Mat{}, framesPerSecond, features,
                               scaleFactor, levels, fastThreshold,
                               harrisScore, useMotionModel};
@@ -91,7 +90,7 @@ void rejectsDistortion(const cv::Mat& distortion, std::string_view expected)
     std::string message;
 
     try {
-        ORB_SLAM::Tracking{nullptr, nullptr, nullptr, nullptr,
+        ORB_SLAM::Tracking{nullptr, nullptr, nullptr,
                            cv::Mat1f::eye(3, 3), distortion, framesPerSecond,
                            features, scaleFactor, levels, fastThreshold,
                            harrisScore, /*useMotionModel=*/true};
@@ -121,7 +120,7 @@ void emptyDistortionMeansNone()
     std::optional<DistortionTracking> tracking;
 
     try {
-        tracking.emplace(nullptr, nullptr, nullptr, nullptr,
+        tracking.emplace(nullptr, nullptr, nullptr,
                          cv::Mat1f::eye(3, 3), cv::Mat{}, framesPerSecond,
                          features, scaleFactor, levels, fastThreshold,
                          harrisScore, /*useMotionModel=*/true);
@@ -194,7 +193,7 @@ void dropsRefusedKeyFrame()
 
     ORB_SLAM::Map map;
     ORB_SLAM::LocalMapping localMapping{&map};
-    KeyFrameTracking tracking{nullptr, nullptr, nullptr, &map,
+    KeyFrameTracking tracking{nullptr, nullptr, &map,
                               cv::Mat1f::eye(3, 3), cv::Mat{},
                               framesPerSecond, features, scaleFactor, levels,
                               fastThreshold, harrisScore,
@@ -259,7 +258,7 @@ void settingsTrackerStartsEmpty()
 
     ORB_SLAM::tests::LogCapture capture;
     InitialTracking* const tracking = new (storage)
-        InitialTracking{nullptr, nullptr, nullptr, nullptr, settings.string()};
+        InitialTracking{nullptr, nullptr, nullptr, settings.string()};
 
     check(capture.contains(NGLOG_INFO, "camera parameters: fx 500, fy 510"),
           "the tracker logs the camera parameters of its settings");
@@ -296,8 +295,7 @@ void framesCarryImageTime()
 
     ORB_SLAM::Map map;
     ORB_SLAM::FramePublisher framePublisher;
-    ORB_SLAM::MapPublisher mapPublisher{&map};
-    ORB_SLAM::Tracking tracking{nullptr, &framePublisher, &mapPublisher, &map,
+    ORB_SLAM::Tracking tracking{nullptr, &framePublisher, &map,
                                 cv::Mat1f::eye(3, 3), cv::Mat{},
                                 framesPerSecond, features, scaleFactor, levels,
                                 fastThreshold, harrisScore,
@@ -320,8 +318,7 @@ void relocalisationForcedConcurrently()
 
     ORB_SLAM::Map map;
     ORB_SLAM::FramePublisher framePublisher;
-    ORB_SLAM::MapPublisher mapPublisher{&map};
-    ORB_SLAM::Tracking tracking{nullptr, &framePublisher, &mapPublisher, &map,
+    ORB_SLAM::Tracking tracking{nullptr, &framePublisher, &map,
                                 cv::Mat1f::eye(3, 3), cv::Mat{},
                                 framesPerSecond, features, scaleFactor, levels,
                                 fastThreshold, harrisScore,
@@ -377,9 +374,8 @@ void trackerDropsErasedObjects()
     erased->ChangeParent(root);
 
     ORB_SLAM::FramePublisher framePublisher;
-    ORB_SLAM::MapPublisher mapPublisher{&scene.map()};
-    ReferringTracking tracking{nullptr, &framePublisher, &mapPublisher,
-                               &scene.map(), cv::Mat1f::eye(3, 3), cv::Mat{},
+    ReferringTracking tracking{nullptr, &framePublisher, &scene.map(),
+                               cv::Mat1f::eye(3, 3), cv::Mat{},
                                framesPerSecond, features, scaleFactor, levels,
                                fastThreshold, harrisScore,
                                /*useMotionModel=*/true};
@@ -445,7 +441,7 @@ void currentFrameDropsErasedMapPoints()
     ORB_SLAM::MapPoint* const point =
         scene.addMapPoint({0, 0, 1}, {{keyFrame, 0}});
 
-    ReferringTracking tracking{nullptr, nullptr, nullptr, &scene.map(),
+    ReferringTracking tracking{nullptr, nullptr, &scene.map(),
                                cv::Mat1f::eye(3, 3), cv::Mat{},
                                framesPerSecond, features, scaleFactor, levels,
                                fastThreshold, harrisScore,
@@ -468,7 +464,7 @@ void trackerForgetsMapOnReset()
     ORB_SLAM::Map map;
     ORB_SLAM::ORBVocabulary vocabulary;
     ORB_SLAM::KeyFrameDatabase database{vocabulary};
-    ReferringTracking tracking{nullptr, nullptr, nullptr, &map,
+    ReferringTracking tracking{nullptr, nullptr, &map,
                                cv::Mat1f::eye(3, 3), cv::Mat{},
                                framesPerSecond, features, scaleFactor, levels,
                                fastThreshold, harrisScore,
@@ -525,7 +521,7 @@ void forcedRelocalisationWithoutLastKeyFrame()
         branching, depth);
     ORB_SLAM::Map map;
     ORB_SLAM::KeyFrameDatabase database{vocabulary};
-    ReferringTracking tracking{&vocabulary, nullptr, nullptr, &map,
+    ReferringTracking tracking{&vocabulary, nullptr, &map,
                                cv::Mat1f::eye(3, 3), cv::Mat{},
                                framesPerSecond, features, scaleFactor, levels,
                                fastThreshold, harrisScore,

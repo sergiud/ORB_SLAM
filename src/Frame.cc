@@ -24,9 +24,6 @@
 
 #include <opencv2/geometry.hpp>
 
-#ifdef HAVE_ROS
-#include <ros/ros.h>
-#endif // ROS
 
 namespace ORB_SLAM
 {

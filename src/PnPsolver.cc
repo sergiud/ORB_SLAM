@@ -55,9 +55,6 @@
 
 #include <vector>
 #include <cmath>
-#ifdef HAVE_ROS
-#include <ros/ros.h>
-#endif // HAVE_ROS
 #include <algorithm>
 
 #include <ng-log/experimental/log.h>

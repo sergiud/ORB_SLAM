@@ -36,10 +36,6 @@
 
 #include <ng-log/experimental/log.h>
 
-#ifdef HAVE_ROS
-#include <ros/ros.h>
-#endif // HAVE_ROS
-
 #include <g2o/types/sim3/types_seven_dof_expmap.h>
 
 namespace ORB_SLAM
@@ -67,34 +63,6 @@ void LoopClosing::SetLocalMapper(LocalMapping *pLocalMapper)
 void LoopClosing::Run(std::stop_token stopToken)
 {
 
-#ifdef HAVE_ROS
-    ros::Rate r(200);
-
-    while(ros::ok())
-    {
-        // Check if there are keyframes in the queue
-        if(CheckNewKeyFrames())
-        {
-            // Detect loop candidates and check covisibility consistency
-            if(DetectLoop())
-            {
-               // Compute similarity transformation [sR|t]
-               if(ComputeSim3())
-               {
-                   // Perform loop fusion and pose graph optimization
-                   CorrectLoop(stopToken);
-               }
-            }
-        }
-
-        ResetIfRequested();
-
-        DropErasedObjects();
-        mParticipant.Quiesce();
-
-        r.sleep();
-    }
-#else
     while(!stopToken.stop_requested())
     {
         // Check if there are keyframes in the queue
@@ -122,7 +90,6 @@ void LoopClosing::Run(std::stop_token stopToken)
             return CheckNewKeyFrames() || ResetRequested();
         });
     }
-#endif // HAVE_ROS
 }
 
 void LoopClosing::DropErasedObjects()
@@ -510,13 +477,6 @@ void LoopClosing::CorrectLoop(std::stop_token stopToken)
     mpLocalMapper->RequestPause();
 
     // Wait until Local Mapping has effectively paused
-#ifdef HAVE_ROS
-    ros::Rate r(1e4);
-    while(ros::ok() && !mpLocalMapper->isPaused())
-    {
-        r.sleep();
-    }
-#else
     if (!mpLocalMapper->WaitUntilPaused(stopToken))
     {
         // Loop closing ends before local mapping paused, so the map stays
@@ -524,7 +484,6 @@ void LoopClosing::CorrectLoop(std::stop_token stopToken)
         mpLocalMapper->Resume();
         return;
     }
-#endif // HAVE_ROS
 
     // Ensure current keyframe is updated
     mpCurrentKF->UpdateConnections();
@@ -696,24 +655,11 @@ void LoopClosing::RequestReset()
         mbResetRequested = true;
     }
 
-#ifdef HAVE_ROS
-    ros::Rate r(500);
-    while(ros::ok())
-    {
-        {
-        std::scoped_lock lock2{mMutexReset};
-        if(!mbResetRequested)
-            break;
-        }
-        r.sleep();
-    }
-#else
     WakeUp();
 
     std::unique_lock lock2{mMutexReset};
     // The worker may have reset already, before this thread waits.
     resetDone.wait(lock2, [this] { return !mbResetRequested; });
-#endif // HAVE_ROS
 }
 
 void LoopClosing::ResetIfRequested()

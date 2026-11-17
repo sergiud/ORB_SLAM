@@ -24,9 +24,6 @@
 
 #include<limits.h>
 
-#ifdef HAVE_ROS
-#include<ros/ros.h>
-#endif // HAVE_ROS
 #include<opencv2/core.hpp>
 
 #include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"

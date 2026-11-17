@@ -20,10 +20,6 @@
 */
 
 #include "Tracking.h"
-#ifdef HAVE_ROS
-#include<ros/ros.h>
-#include <cv_bridge/cv_bridge.h>
-#endif // HAVE_ROS
 
 #include<opencv2/opencv.hpp>
 
@@ -81,7 +77,7 @@ void EnsureScoreType(int score)
 
 } // namespace
 
-Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap,
+Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, Map *pMap,
         const cv::Mat& K, const cv::Mat& distCoeffs, double fps,
         int nFeatures,
         float fScaleFactor,
@@ -90,8 +86,8 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
         int Score,
         bool UseMotionModel
         ):
-    mState(NO_IMAGES_YET), mpORBVocabulary(pVoc), mpFramePublisher(pFramePublisher), mpMapPublisher(pMapPublisher), mpMap(pMap),
-    mnLastRelocFrameId(0), mbPublisherStopped(false), mbReseting(false), mbForceRelocalisation(false), mbMotionModel(UseMotionModel)
+    mState(NO_IMAGES_YET), mpORBVocabulary(pVoc), mpFramePublisher(pFramePublisher), mpMap(pMap),
+    mnLastRelocFrameId(0), mbForceRelocalisation(false), mbMotionModel(UseMotionModel)
 {
     if(pMap)
     {
@@ -144,9 +140,9 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     LogMotionModel(mbMotionModel);
 }
 
-Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap, string strSettingPath):
-    mState(NO_IMAGES_YET), mpORBVocabulary(pVoc), mpFramePublisher(pFramePublisher), mpMapPublisher(pMapPublisher), mpMap(pMap),
-    mnLastRelocFrameId(0), mbPublisherStopped(false), mbReseting(false), mbForceRelocalisation(false), mbMotionModel(false)
+Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, Map *pMap, string strSettingPath):
+    mState(NO_IMAGES_YET), mpORBVocabulary(pVoc), mpFramePublisher(pFramePublisher), mpMap(pMap),
+    mnLastRelocFrameId(0), mbForceRelocalisation(false), mbMotionModel(false)
 {
     if(pMap)
     {
@@ -226,11 +222,6 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     LogMotionModel(mbMotionModel);
 
 
-#ifdef HAVE_ROS
-    tf::Transform tfT;
-    tfT.setIdentity();
-    mTfBr.sendTransform(tf::StampedTransform(tfT,ros::Time::now(), "/ORB_SLAM/World", "/ORB_SLAM/Camera"));
-#endif // HAVE_ROS
 }
 
 void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
@@ -246,17 +237,6 @@ void Tracking::SetLoopClosing(LoopClosing *pLoopClosing)
 void Tracking::SetKeyFrameDatabase(KeyFrameDatabase *pKFDB)
 {
     mpKeyFrameDB = pKFDB;
-}
-
-
-void Tracking::Run()
-{
-#ifdef HAVE_ROS
-    ros::NodeHandle nodeHandler;
-    ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &Tracking::GrabImage, this);
-
-    ros::spin();
-#endif // HAVE_ROS
 }
 
 void Tracking::Track(const cv::Mat& im, double timestamp)
@@ -351,8 +331,6 @@ void Tracking::TrackImage(const cv::Mat& im, double timestamp)
         // If tracking were good, check if we insert a keyframe
         if(bOK)
         {
-            mpMapPublisher->SetCurrentCameraPose(mCurrentFrame.mTcw);
-
             if(NeedNewKeyFrame())
                 CreateNewKeyFrame();
 
@@ -404,178 +382,8 @@ void Tracking::TrackImage(const cv::Mat& im, double timestamp)
 
     // Update drawer
     mpFramePublisher->Update(this);
-
-    if(!mCurrentFrame.mTcw.empty())
-    {
-        cv::Mat Rwc = mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3).t();
-        cv::Mat twc = -Rwc*mCurrentFrame.mTcw.rowRange(0,3).col(3);
-#ifdef HAVE_ROS
-        tf::Matrix3x3 M(Rwc.at<float>(0,0),Rwc.at<float>(0,1),Rwc.at<float>(0,2),
-                        Rwc.at<float>(1,0),Rwc.at<float>(1,1),Rwc.at<float>(1,2),
-                        Rwc.at<float>(2,0),Rwc.at<float>(2,1),Rwc.at<float>(2,2));
-        tf::Vector3 V(twc.at<float>(0), twc.at<float>(1), twc.at<float>(2));
-
-        tf::Transform tfTcw(M,V);
-
-        mTfBr.sendTransform(tf::StampedTransform(tfTcw,ros::Time::now(), "ORB_SLAM/World", "ORB_SLAM/Camera"));
-#endif // HAVE_ROS
-    }
 }
 
-#ifdef HAVE_ROS
-void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
-{
-
-    cv::Mat im;
-
-    // Copy the ros image message to cv::Mat. Convert to grayscale if it is a color image.
-    cv_bridge::CvImageConstPtr cv_ptr;
-    try
-    {
-        cv_ptr = cv_bridge::toCvShare(msg);
-    }
-    catch (cv_bridge::Exception& e)
-    {
-        ROS_ERROR("cv_bridge exception: %s", e.what());
-        return;
-    }
-
-    ROS_ASSERT(cv_ptr->image.channels()==3 || cv_ptr->image.channels()==1);
-
-    if(cv_ptr->image.channels()==3)
-    {
-        if(mbRGB)
-            cvtColor(cv_ptr->image, im, CV_RGB2GRAY);
-        else
-            cvtColor(cv_ptr->image, im, cv::COLOR_BGR2GRAY);
-    }
-    else if(cv_ptr->image.channels()==1)
-    {
-        cv_ptr->image.copyTo(im);
-    }
-
-    if(mState==WORKING || mState==LOST)
-        mCurrentFrame = Frame(im,cv_ptr->header.stamp.toSec(),mpORBextractor.get(),mpORBVocabulary,mK,mDistCoef);
-    else
-        mCurrentFrame = Frame(im,cv_ptr->header.stamp.toSec(),mpIniORBextractor.get(),mpORBVocabulary,mK,mDistCoef);
-
-    // Depending on the state of the Tracker we perform different tasks
-
-    if(mState==NO_IMAGES_YET)
-    {
-        mState = NOT_INITIALIZED;
-    }
-
-    mLastProcessedState=mState;
-
-    if(mState==NOT_INITIALIZED)
-    {
-        FirstInitialization();
-    }
-    else if(mState==INITIALIZING)
-    {
-        Initialize();
-    }
-    else
-    {
-        // System is initialized. Track Frame.
-        bool bOK;
-
-        // Initial Camera Pose Estimation from Previous Frame (Motion Model or Coarse) or Relocalisation
-        if(mState==WORKING && !RelocalisationRequested())
-        {
-            if(!mbMotionModel || mpMap->KeyFramesInMap()<4 || mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2)
-                bOK = TrackPreviousFrame();
-            else
-            {
-                bOK = TrackWithMotionModel();
-                if(!bOK)
-                    bOK = TrackPreviousFrame();
-            }
-        }
-        else
-        {
-            bOK = Relocalisation();
-        }
-
-        // If we have an initial estimation of the camera pose and matching. Track the local map.
-        if(bOK)
-            bOK = TrackLocalMap();
-
-        // If tracking were good, check if we insert a keyframe
-        if(bOK)
-        {
-            mpMapPublisher->SetCurrentCameraPose(mCurrentFrame.mTcw);
-
-            if(NeedNewKeyFrame())
-                CreateNewKeyFrame();
-
-            // We allow points with high innovation (considererd outliers by the Huber Function)
-            // pass to the new keyframe, so that bundle adjustment will finally decide
-            // if they are outliers or not. We don't want next frame to estimate its position
-            // with those points so we discard them in the frame.
-            for(size_t i=0; i<mCurrentFrame.mvbOutlier.size();i++)
-            {
-                if(mCurrentFrame.mvpMapPoints[i] && mCurrentFrame.mvbOutlier[i])
-                    mCurrentFrame.mvpMapPoints[i]=NULL;
-            }
-        }
-
-        if(bOK)
-            mState = WORKING;
-        else
-            mState=LOST;
-
-        // Reset if the camera get lost soon after initialization
-        if(mState==LOST)
-        {
-            if(mpMap->KeyFramesInMap()<=5)
-            {
-                ngx::Log(ngx::Warning, "camera lost soon after initialization; resetting");
-                Reset();
-                return;
-            }
-        }
-
-        // Update motion model
-        if(mbMotionModel)
-        {
-            if(bOK && !mLastFrame.mTcw.empty())
-            {
-                cv::Mat LastRwc = mLastFrame.mTcw.rowRange(0,3).colRange(0,3).t();
-                cv::Mat Lasttwc = -LastRwc*mLastFrame.mTcw.rowRange(0,3).col(3);
-                cv::Mat LastTwc = cv::Mat::eye(4,4,CV_32F);
-                LastRwc.copyTo(LastTwc.rowRange(0,3).colRange(0,3));
-                Lasttwc.copyTo(LastTwc.rowRange(0,3).col(3));
-                mVelocity = mCurrentFrame.mTcw*LastTwc;
-            }
-            else
-                mVelocity = cv::Mat();
-        }
-
-        mLastFrame = Frame(mCurrentFrame);
-     }
-
-    // Update drawer
-    mpFramePublisher->Update(this);
-
-    if(!mCurrentFrame.mTcw.empty())
-    {
-        cv::Mat Rwc = mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3).t();
-        cv::Mat twc = -Rwc*mCurrentFrame.mTcw.rowRange(0,3).col(3);
-        tf::Matrix3x3 M(Rwc.at<float>(0,0),Rwc.at<float>(0,1),Rwc.at<float>(0,2),
-                        Rwc.at<float>(1,0),Rwc.at<float>(1,1),Rwc.at<float>(1,2),
-                        Rwc.at<float>(2,0),Rwc.at<float>(2,1),Rwc.at<float>(2,2));
-        tf::Vector3 V(twc.at<float>(0), twc.at<float>(1), twc.at<float>(2));
-
-        tf::Transform tfTcw(M,V);
-
-        mTfBr.sendTransform(tf::StampedTransform(tfTcw,ros::Time::now(), "ORB_SLAM/World", "ORB_SLAM/Camera"));
-    }
-
-}
-
-#endif // HAVE_ROS
 
 void Tracking::FirstInitialization()
 {
@@ -742,7 +550,6 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
 
     mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
 
-    mpMapPublisher->SetCurrentCameraPose(pKFcur->GetPose());
 
     mState=WORKING;
 }
@@ -1298,31 +1105,6 @@ bool Tracking::RelocalisationRequested()
 
 void Tracking::Reset()
 {
-    {
-        std::scoped_lock lock{mMutexReset};
-        mbPublisherStopped = false;
-        mbReseting = true;
-    }
-
-#ifdef HAVE_ROS
-    // Wait until publishers are stopped
-    ros::Rate r(500);
-    while(1)
-    {
-        {
-            std::scoped_lock lock{mMutexReset};
-            if(mbPublisherStopped)
-                break;
-        }
-        r.sleep();
-    }
-#else
-#if 0
-    while (!mbPublisherStopped)
-        std::this_thread::sleep_for(std::chrono::milliseconds{2});
-#endif
-#endif // HAVE_ROS
-
     // Reset Local Mapping
     if (mpLocalMapper)
         mpLocalMapper->RequestReset();
@@ -1347,46 +1129,6 @@ void Tracking::Reset()
     KeyFrame::nNextId = 0;
     Frame::nNextId = 0;
     mState = NOT_INITIALIZED;
-
-    {
-        std::scoped_lock lock{mMutexReset};
-        mbReseting = false;
-    }
-}
-
-void Tracking::CheckResetByPublishers()
-{
-    bool bReseting = false;
-
-    {
-        std::scoped_lock lock{mMutexReset};
-        bReseting = mbReseting;
-    }
-
-    if(bReseting)
-    {
-        std::scoped_lock lock{mMutexReset};
-        mbPublisherStopped = true;
-    }
-
-#ifdef HAVE_ROS
-    // Hold until reset is finished
-    ros::Rate r(500);
-    while(1)
-    {
-        {
-            std::scoped_lock lock{mMutexReset};
-            if(!mbReseting)
-            {
-                mbPublisherStopped=false;
-                break;
-            }
-        }
-        r.sleep();
-    }
-#else
-    mbPublisherStopped = false;
-#endif // HAVE_ROS
 }
 
 Tracking::eTrackingState Tracking::GetState() const

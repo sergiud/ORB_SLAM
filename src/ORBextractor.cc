@@ -71,10 +71,6 @@
 #include <ng-log/experimental/ensure.h>
 #include <ng-log/experimental/log.h>
 
-#ifdef HAVE_ROS
-#include <ros/ros.h>
-#endif // HAVE_ROS
-
 using namespace cv;
 using namespace std;
 

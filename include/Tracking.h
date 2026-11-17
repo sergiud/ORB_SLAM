@@ -24,11 +24,6 @@
 
 #include <opencv2/core.hpp>
 
-#ifdef HAVE_ROS
-#include<sensor_msgs/Image.h>
-#include<sensor_msgs/image_encodings.h>
-#include<tf/transform_broadcaster.h>
-#endif // HAVE_ROS
 
 #include "FramePublisher.h"
 #include "Map.h"
@@ -39,7 +34,6 @@
 #include "KeyFrameDatabase.h"
 #include "ORBextractor.h"
 #include "Initializer.h"
-#include "MapPublisher.h"
 #include "ORB_SLAM_export.h"
 
 #include <atomic>
@@ -60,7 +54,7 @@ class ORB_SLAM_EXPORT Tracking
 {
 
 public:
-    Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap,
+    Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, Map *pMap,
         const cv::Mat& K, const cv::Mat& distCoeffs, double fps,
         int nFeatures = 1000,
         float fScaleFactor = 1.2f,
@@ -69,7 +63,7 @@ public:
         int Score = 1,
         bool UseMotionModel = true
         );
-    Tracking(ORBVocabulary* pVoc, FramePublisher* pFramePublisher, MapPublisher* pMapPublisher, Map* pMap, string strSettingPath);
+    Tracking(ORBVocabulary* pVoc, FramePublisher* pFramePublisher, Map* pMap, string strSettingPath);
 
     enum eTrackingState{
         SYSTEM_NOT_READY=-1,
@@ -83,9 +77,6 @@ public:
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
     void SetKeyFrameDatabase(KeyFrameDatabase* pKFDB);
-
-    // This is the main function of the Tracking Thread
-    void Run();
 
     void ForceRelocalisation();
 
@@ -102,7 +93,6 @@ public:
     std::vector<cv::Point3f> mvIniP3D;
     Frame mInitialFrame;
 
-    void CheckResetByPublishers();
 
     /**
      * Tracks the camera in an image.
@@ -123,9 +113,6 @@ public:
     std::vector<cv::KeyPoint> GetKeyPoints() const;
 
 protected:
-#ifdef HAVE_ROS
-    void GrabImage(const sensor_msgs::ImageConstPtr& msg);
-#endif // HAVE_ROS
 
     //! Tracks the camera in an image, as @ref Track describes.
     void TrackImage(const cv::Mat& image, double timestamp);
@@ -175,9 +162,8 @@ protected:
     std::vector<KeyFrame*> mvpLocalKeyFrames;
     std::vector<MapPoint*> mvpLocalMapPoints;
 
-    //Publishers
+    //Publisher
     FramePublisher* mpFramePublisher;
-    MapPublisher* mpMapPublisher;
 
     //Map
     Map* mpMap;
@@ -205,11 +191,6 @@ protected:
     //Mutex
     std::mutex mMutexTrack;
 
-    //Reset
-    std::atomic<bool> mbPublisherStopped;
-    std::atomic<bool> mbReseting;
-    std::mutex mMutexReset;
-
     //Is relocalisation requested by an external thread? (loop closing)
     std::atomic<bool> mbForceRelocalisation;
 
@@ -220,10 +201,6 @@ protected:
     //Color order (true RGB, false BGR, ignored if grayscale)
     bool mbRGB;
 
-#ifdef HAVE_ROS
-    // Transfor broadcaster (for visualization in rviz)
-    tf::TransformBroadcaster mTfBr;
-#endif // HAVE_ROS
 };
 
 } //namespace ORB_SLAM

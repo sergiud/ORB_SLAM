@@ -24,9 +24,6 @@
 #include <vector>
 #include <cmath>
 #include <opencv2/geometry.hpp>
-#ifdef HAVE_ROS
-#include <ros/ros.h>
-#endif // HAVE_ROS
 
 #include "KeyFrame.h"
 #include "ORBmatcher.h"

@@ -45,141 +45,71 @@ If you use ORB-SLAM in an academic work, please cite:
 2.1 Boost
 
 The SLAM library runs its threads with the C++ standard library and needs a
-compiler that supports C++23. The command-line program run_ORB_SLAM parses
-its options with Boost.Program_Options, and the ROS node starts its threads
-with Boost.Thread.
+compiler that supports C++23. The command-line program `run_ORB_SLAM` parses
+its options with Boost.Program_Options.
 
-	sudo apt-get install libboost-program-options-dev libboost-thread-dev
+	sudo apt-get install libboost-program-options-dev
 
-2.2 ROS
-We use ROS to receive images from the camera or from a recorded sequence (rosbag), and for visualization (rviz, image_view). 
-We have tested ORB-SLAM in Ubuntu 12.04 with ROS Fuerte, Groovy and Hydro; and in Ubuntu 14.04 with ROS Indigo. 
-If you do not have already installed ROS in your computer, we recommend you to install the Full-Desktop version of ROS Fuerte (http://wiki.ros.org/fuerte/Installation/Ubuntu).
+2.2 OpenCV
+We use OpenCV to manipulate images and features. ORB-SLAM needs OpenCV 5.0 or later with the core, calib, imgproc, highgui and features modules. Download and install instructions can be found at: http://opencv.org/
 
-If you use ROS Indigo, remove the depency of opencv2 in the manifest.xml.
-
-2.3 OpenCV
-We use OpenCV to manipulate images and features. ORB-SLAM needs OpenCV 5.0 or later with the core, calib, imgproc, highgui and features modules.
-Download and install instructions can be found at: http://opencv.org/
-
-2.4 g2o and Eigen
-We use g2o (https://github.com/RainerKuemmerle/g2o) to perform optimizations. Install g2o 2017.7.30 or later with its core, types_sba, types_slam3d and types_sim3 libraries. Build g2o with the same -march flags as ORB-SLAM, since g2o chooses the alignment of its Eigen types by them and the two do not link otherwise.
+2.3 g2o and Eigen
+We use g2o (https://github.com/RainerKuemmerle/g2o) to perform optimizations. Install g2o 2017.7.30 or later with its core, types_sba, types_slam3d and types_sim3 libraries. Build g2o with the same `-march` flags as ORB-SLAM, since g2o chooses the alignment of its Eigen types by them and the two do not link otherwise.
 ORB-SLAM needs Eigen 3.4.1 or later, up to version 5. g2o needs BLAS and LAPACK in addition.
 
 	sudo apt-get install libblas-dev
 	sudo apt-get install liblapack-dev
 	sudo apt-get install libeigen3-dev
 
-2.5 DBoW2 (included in Thirdparty)
-We make use of some components of the DBoW2 library (see original at https://github.com/dorian3d/DBoW2) for place recognition and feature matching. There are no additional dependencies to compile DBoW2.
+2.4 DBoW2 (included in Thirdparty)
+We make use of some components of the DBoW2 library (see original at https://github.com/dorian3d/DBoW2) for place recognition and feature matching. ORB-SLAM builds it along with the library.
 
 
 3. Installation
 
-  1) Make sure you have installed ROS and all library dependencies (boost, eigen3, opencv, blas, lapack).
+  1) Install the dependencies of section 2, g2o as section 2.3 describes.
 
   2) Clone the repository:
 
 		git clone https://github.com/raulmur/ORB_SLAM.git ORB_SLAM
-		
-  3) Add the path where you cloned ORB-SLAM to the `ROS_PACKAGE_PATH` environment variable. To do this, modify your .bashrc and add at the bottom the following line (replace  PATH_TO_PARENT_OF_ORB_SLAM):
 
-		export ROS_PACKAGE_PATH=${ROS_PACKAGE_PATH}:PATH_TO_PARENT_OF_ORB_SLAM
+  3) Build ORB-SLAM and run its tests. In the ORB_SLAM root execute:
 
-  4) Install g2o as section 2.4 describes.
+		cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-march=native
+		cmake --build build
+		ctest --test-dir build
 
-  5) Build DBoW2. Go into Thirdparty/DBoW2/ and execute:
+  4) Optionally install the library, its headers and the CMake package `orb_slam`, which `find_package (orb_slam)` finds:
 
-		mkdir build
-		cd build
-		cmake .. -DCMAKE_BUILD_TYPE=Release
-		make  
-
-	Tip: Set your favorite compilation flags in line 4 and 5 of `Thirdparty/DBoW2/CMakeLists.txt` (by default -03 -march=native)
-
-  6) Build ORB_SLAM. In the ORB_SLAM root execute:
-
-	If you use ROS Indigo, remove the depency of opencv2 in the manifest.xml.
-
-		mkdir build
-		cd build
-		cmake .. -DROS_BUILD_TYPE=Release
-		make
-
-	Tip: Set your favorite compilation flags in line 12 and 13 of* `./CMakeLists.txt` (by default -03 -march=native)
+		cmake --install build --prefix PATH_TO_INSTALLATION
 
 4. Usage
 
-See section 5 to run the Example Sequence.
+  1) Uncompress the vocabulary in `Data/ORBvoc.txt.tar.gz`, since ORB-SLAM reads the text file much faster.
 
-  1) Launch ORB-SLAM from the terminal (`roscore` should have been already executed):
+  2) Run ORB-SLAM on a video with the calibration of its camera:
 
-		rosrun ORB_SLAM ORB_SLAM PATH_TO_VOCABULARY PATH_TO_SETTINGS_FILE
+		build/run_ORB_SLAM --vocabulary Data/ORBvoc.txt --calibration CALIBRATION_FILE --input VIDEO
 
-  You have to provide the path to the ORB vocabulary and to the settings file. The paths must be absolute or relative   to the ORB_SLAM directory.  
-  We already provide the vocabulary file we use in `ORB_SLAM/Data/ORBvoc.txt.tar.gz`. Uncompress the file, as it will be loaded much faster.
+  The input is anything that OpenCV's `cv::VideoCapture` opens, such as a video file or a sequence of images named by a pattern like `rgb/%d.png`. A window shows the tracked features unless `--no-video` is given. With `--trajectory FILE`, ORB-SLAM writes the pose of each keyframe at the end, one line each with the time stamp, the position and the orientation as a quaternion in the order x, y, z, w. `run_ORB_SLAM --help` lists all options.
 
-  2) The last processed frame is published to the topic `/ORB_SLAM/Frame`. You can visualize it using `image_view`:
+  3) The calibration file is a YAML file of OpenCV's `cv::FileStorage` with the camera matrix and the distortion coefficients of OpenCV's camera model, 4 or 5 values ordered k1, k2, p1, p2 and k3:
 
-		rosrun image_view image_view image:=/ORB_SLAM/Frame _autosize:=true
+		%YAML:1.0
+		camera_matrix: !!opencv-matrix
+		   rows: 3
+		   cols: 3
+		   dt: d
+		   data: [ 481.2, 0., 319.5, 0., 480., 239.5, 0., 0., 1. ]
+		distortion_coefficients: !!opencv-matrix
+		   rows: 1
+		   cols: 4
+		   dt: d
+		   data: [ 0., 0., 0., 0. ]
 
-  3) The map is published to the topic `/ORB_SLAM/Map`, the current camera pose and global world coordinate origin are sent through `/tf` in frames `/ORB_SLAM/Camera` and `/ORB_SLAM/World` respectively.  Run `rviz` to visualize the map:
-	
-	in ROS Fuerte:
+  `Data/Settings.yaml` shows the settings that the tracker reads when the library constructs it from a settings file.
 
-		rosrun rviz rviz -d Data/rviz.vcg
-
-	in ROS Groovy or a newer version:
-
-		rosrun rviz rviz -d Data/rviz.rviz
-
-  4) ORB_SLAM will receive the images from the topic `/camera/image_raw`. You can now play your rosbag or start your camera node. 
-If you have a sequence with individual image files, you will need to generate a bag from them. We provide a tool to do that: https://github.com/raulmur/BagFromImages.
-
-
-Tip: Use a roslaunch to launch `ORB_SLAM`, `image_view` and `rviz` from just one instruction. We provide an example:
-
-in ROS Fuerte:
-
-	roslaunch ExampleFuerte.launch
-
-in ROS Groovy or a newer version:
-
-	roslaunch ExampleGroovyOrNewer.launch
-
-
-5. Example Sequence
-We provide the settings and the rosbag of an example sequence in our lab. In this sequence you will see a loop closure and two relocalisation from a big viewpoint change.
-
-  1) Download the rosbag file:  
-	http://webdiis.unizar.es/~raulmur/orbslam/downloads/Example.bag.tar.gz. 
-
-	Alternative link: https://drive.google.com/file/d/0B8Qa2__-sGYgRmozQ21oRHhUZWM/view?usp=sharing
-
-	Uncompress the file.
-  
-  2) Launch ORB_SLAM with the settings for the example sequence. You should have already uncompressed the vocabulary file (`/Data/ORBvoc.txt.tar.gz`)
-
-  in ROS Fuerte:
-
-	  roslaunch ExampleFuerte.launch
-
-  in ROS Groovy or newer versions:
-
-	  roslaunch ExampleGroovyOrNewer.launch
-
-  3) Once the ORB vocabulary has been loaded, play the rosbag (press space to start):
-
-	rosbag play --pause Example.bag
-
-
-6. The Settings File
-
-ORB_SLAM reads the camera calibration and setting parameters from a YAML file. We provide an example in `Data/Settings.yaml`, where you will find all parameters and their description. We use the camera calibration model of OpenCV.
-
-Please make sure you write and call your own settings file for your camera (copy the example file and modify the calibration)
-
-7. Failure Modes
+5. Failure Modes
 
 You should expect to achieve good results in sequences similar to those in which we show results in our paper [1], in terms of camera movement and texture in the environment. In general our Monocular SLAM solution is expected to have a bad time in the following situations:
 - Pure rotations in exploration
@@ -188,7 +118,7 @@ You should expect to achieve good results in sequences similar to those in which
 
 The system is able to initialize from planar and non-planar scenes. In the case of planar scenes, depending on the camera movement relative to the plane, it is possible that the system refuses to initialize, see the paper [1] for details. 
 
-8. Need Help?
+6. Need Help?
 
 If you have any trouble installing or running ORB-SLAM, contact the authors.
 
