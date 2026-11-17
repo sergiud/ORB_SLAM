@@ -175,7 +175,17 @@ set_tests_properties (ORB_SLAM/package/install PROPERTIES
 )
 
 # The consumer compiles the headers of g2o, which choose the alignment of
-# their Eigen types by the flags, so it gets the flags of this build.
+# their Eigen types by the flags, so it gets the flags of this build. A cross
+# build passes on its toolchain, which also runs the consumer. The toolchain
+# may search for packages below its root only, so that the consumer then
+# finds the installed packages by their directories.
+if (CMAKE_CROSSCOMPILING)
+  set (_package_dirs
+    -DDBoW2_DIR=${_prefix}/${CMAKE_INSTALL_LIBDIR}/cmake/DBoW2
+    -Dorb_slam_DIR=${_prefix}/${CMAKE_INSTALL_LIBDIR}/cmake/ORB_SLAM
+  )
+endif (CMAKE_CROSSCOMPILING)
+
 add_test (NAME ORB_SLAM/package/consumer
   COMMAND ${CMAKE_CTEST_COMMAND}
     --build-and-test ${CMAKE_CURRENT_SOURCE_DIR}/consumer
@@ -184,6 +194,8 @@ add_test (NAME ORB_SLAM/package/consumer
     --build-config $<CONFIG>
     --build-options
       -DCMAKE_PREFIX_PATH=${_prefix}
+      -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+      ${_package_dirs}
       -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
       -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
